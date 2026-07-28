@@ -1,0 +1,73 @@
+# ── Python ──────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+eggs/
+*.egg
+
+# ── uv / venv ───────────────────────────
+.venv/
+venv/
+env/
+
+# ── Claude Code ─────────────────────────
+.claude/
+
+# ── IDE ─────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ── OS ──────────────────────────────────
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ── Project: models (large binaries) ────
+bert_model_trained/
+*.onnx
+
+# ── Project: vector DB ──────────────────
+chroma_db/
+user_docs/
+
+# ── Project: PP-OCR model files ────────
+PP-OCR _table_reading/PP-OCR model/
+
+# ── Project: runtime outputs ────────────
+# Annotation images (sample/test data)
+*/annotation/
+*/annotations/
+*/input/
+*/imgs/
+*/PS/
+
+# PP-OCR results
+PP-OCR _table_reading/results/
+PP-OCR _table_reading/results_fixed/
+PP-OCR _table_reading/test_results/
+PP-OCR _table_reading/cropped_images/
+
+# Completeness_check outputs
+Completeness_check/boxes/
+Completeness_check/box_output/
+Completeness_check/images/
+Completeness_check/output/
+Completeness_check/processed/
+Completeness_check/processed_images/
+Completeness_check/refPts/
+Completeness_check/txts/
+Completeness_check/reference.xlsx
+
+# Location outputs
+Location/output/
+Location/input/
+
+# RAG spec PDFs (large)
+Annotation-test-RAG/规范文件/*.pdf

@@ -1,0 +1,43 @@
+[project]
+name = "drawing-review"
+version = "0.1.0"
+description = "图纸审查系统 — Drawing review system with OCR, BERT, YOLOv5, and RAG"
+requires-python = ">=3.10,<3.13"
+dependencies = [
+    # ── OCR ──────────────────────────────────
+    "paddleocr>=2.9.0,<3.0.0",
+    "paddlepaddle>=2.6.0,<3.0.0",
+    "pytesseract>=0.3.0",
+    # ── Deep Learning ────────────────────────
+    "torch>=2.0.0",
+    "transformers>=4.30.0",
+    # ── Image Processing ─────────────────────
+    "opencv-python>=4.8.0",
+    "Pillow>=10.0.0",
+    "numpy>=1.24.0",
+    # ── GUI ──────────────────────────────────
+    "PyQt5>=5.15.0,<5.15.10",
+    "pyqt5-qt5==5.15.2",
+    # ── Data ─────────────────────────────────
+    "pandas>=2.0.0",
+    "openpyxl>=3.1.0",
+    # ── Misc ─────────────────────────────────
+    "premailer>=3.10.0",
+]
+
+[project.optional-dependencies]
+rag = [
+    "langchain>=1.0.0",
+    "langchain-ollama>=1.0.0",
+    "langchain-chroma>=1.0.0",
+    "langchain-classic>=1.0.0",
+    "langchain-text-splitters>=0.3.0",
+    "langchain-core>=1.0.0",
+    "chromadb>=0.5.0",
+    "ollama>=0.6.0",
+    "pypdf>=5.0.0",
+    "python-docx>=1.0.0",
+    "requests>=2.31.0",
+]
+
+[tool.uv]
