@@ -46,7 +46,7 @@ pip install -r requirements.txt
 ### 启动程序
 
 ```bash
-python Judge.py
+python Annotation_check_with.py
 ```
 
 ### 操作步骤
