@@ -1,11 +1,7 @@
 """
-Judge_crop.py
 直接对已裁剪好的 annotation 图块文件夹做 OCR + BERT 判错。
 不需要 JSON 坐标文件，不需要原始大图 — 图片已经是裁剪好的 annotation 区域。
 
-运行方式:
-    python Judge_crop.py
-    (默认读取 output/annotation 文件夹下的裁剪图块)
 """
 
 import torch  # 必须在 PaddleOCR 之前导入，否则 albumentations→torch 的 DLL 加载会失败
@@ -27,10 +23,9 @@ from PyQt5.QtCore import Qt
 # ============================================================
 #  加载 BERT 模型
 # ============================================================
-MODEL_DIR = os.path.join(os.path.dirname(__file__), '..', 'bert_model_trained')
-MODEL_DIR = os.path.abspath(MODEL_DIR)
-# 修复 Windows 路径被 transformers 误判为 HuggingFace repo ID 的问题
-MODEL_DIR = MODEL_DIR.replace('\\', '/')
+MODEL_DIR = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), '..', 'bert_model_trained')
+)
 
 labels = ['不符合设计说明', '符合设计说明']
 tokenizer = BertTokenizer.from_pretrained(MODEL_DIR)
