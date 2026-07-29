@@ -19,7 +19,9 @@ MAX_LENGTH = 128
 BATCH_SIZE = 32
 EPOCHS = 3
 LEARNING_RATE = 2e-5
-MODEL_SAVE_PATH = "./bert_model_trained"
+MODEL_SAVE_PATH = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), '..', 'bert_model_trained')
+)
 
 # 数据文件路径（与脚本同目录）
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
