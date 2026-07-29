@@ -64,7 +64,7 @@ uv run python launcher_v2.py
 # 或单独运行各工具
 uv run python Annotation-test/Annotation_check_without.py
 uv run python Annotation-test-RAG/Annotation_check_with.py
-uv run python "PP-OCR _table_reading/Table_recognition.py"
+uv run python PP-OCR _table_reading/Table_recognition.py
 uv run python Location/Drawing_location.py
 uv run python Code_of_Bert_Trainning/Design_Judge.py
 uv run python Completeness_check/Completeness_check.py
