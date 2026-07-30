@@ -82,11 +82,11 @@ uv run python scripts/fix_opencv.py
 
 ### Tesseract OCR安装
 下载地址`https://github.com/UB-Mannheim/tesseract/wiki`
-Tesseract OCR下载也可通过阿里云盘下载，链接为https://www.alipan.com/s/NshsKZPU32Z，位于drawing-review\OCR文件夹中
+Tesseract OCR下载也可通过阿里云盘下载，位于云盘的drawing-review\OCR文件夹，链接为https://www.alipan.com/s/NshsKZPU32Z
 下载后安装路径都应置于Drawing_review\Completeness_check文件夹下
 
 ### YOLO预训练模型下载
-预训练模型文件格式为onnx，保存在阿里云盘中，链接为https://www.alipan.com/s/NshsKZPU32Z，位于其中drawing-review\Model Profile文件夹中
+预训练模型文件格式为onnx，保存在阿里云盘的drawing-review\Model Profile文件夹，链接为https://www.alipan.com/s/NshsKZPU32Z
 
 ## 运行方式
 
