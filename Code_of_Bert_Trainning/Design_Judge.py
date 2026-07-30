@@ -5,6 +5,11 @@ BERT 文本分类模型 —— 设计说明合规性判别
 """
 
 import os
+
+# 优先使用镜像站（国内网络访问 Hugging Face 可能受限）
+if not os.environ.get("HF_ENDPOINT"):
+    os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
+
 import torch
 from transformers import BertTokenizer, BertForSequenceClassification
 from torch.utils.data import Dataset, DataLoader
@@ -89,9 +94,8 @@ class DesignSpecDataset(Dataset):
 
     def __getitem__(self, idx):
         text, label = self.examples[idx]
-        encoding = self.tokenizer.encode_plus(
+        encoding = self.tokenizer(
             text,
-            add_special_tokens=True,
             max_length=self.max_length,
             padding="max_length",
             truncation=True,
@@ -108,7 +112,7 @@ class DesignSpecDataset(Dataset):
 #  训练
 # ═══════════════════════════════════════════════════════════
 
-def train(model, data_loader, optimizer, criterion, device, epochs=EPOCHS):
+def train(model, data_loader, optimizer, criterion, device, tokenizer, epochs=EPOCHS):
     """训练循环"""
     model.train()
     for epoch in range(epochs):
@@ -165,7 +169,7 @@ def main():
     print("[4/4] 开始训练...")
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
     criterion = torch.nn.CrossEntropyLoss()
-    train(model, data_loader, optimizer, criterion, DEVICE)
+    train(model, data_loader, optimizer, criterion, DEVICE, tokenizer)
 
     print("-" * 50)
     print("训练完成！")

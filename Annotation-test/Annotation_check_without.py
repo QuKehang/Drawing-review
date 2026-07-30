@@ -8,6 +8,11 @@ import torch  # 必须在 PaddleOCR 之前导入，否则 albumentations→torch
 import re
 import sys
 import os
+
+# 优先使用镜像站（国内网络访问 Hugging Face 可能受限）
+if not os.environ.get("HF_ENDPOINT"):
+    os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
+
 import numpy as np
 from paddleocr import PaddleOCR
 from transformers import BertTokenizer, BertForSequenceClassification
@@ -25,7 +30,13 @@ from PyQt5.QtCore import Qt
 # ============================================================
 MODEL_DIR = os.path.abspath(
     os.path.join(os.path.dirname(__file__), '..', 'bert_model_trained')
-)
+).replace('\\', '/')  # 修复 Windows 路径被 transformers 误判为 repo id 的问题
+
+if not os.path.isdir(MODEL_DIR):
+    raise FileNotFoundError(
+        f"训练好的 BERT 模型目录未找到: {MODEL_DIR}\n"
+        "请先运行 Code_of_Bert_Trainning/Design_Judge.py 训练模型。"
+    )
 
 labels = ['不符合设计说明', '符合设计说明']
 tokenizer = BertTokenizer.from_pretrained(MODEL_DIR)
@@ -70,15 +81,42 @@ def correct_ocr_errors(text):
 
 
 def replace_colon_with_semicolon(text):
-    result = re.sub(r'(?<=:)(?=\s*[0-9]{1,2})', ';', text)
+    """在编号项之前插入分号，兼容全角/半角冒号"""
+    # 冒号（全角/半角）后紧跟数字编号时，插入分号
+    result = re.sub(r'(?<=[:：])(?=\s*[0-9]{1,2})', ';', text)
     return result
 
 
 def split_and_number(text):
+    """按分号/句号拆分为独立条目，实现逐条检验"""
+    # 1. 去掉 "附注" 等标注头部（含 OCR 乱码如 "附注：L一"）
+    text = re.sub(r'^附?\s*注\s*[：:]\s*(?:[L Ll l]\s*[一1]\s*)?', '', text)
+
+    # 2. 全角标点 → 半角，统一处理
+    text = text.replace('；', ';').replace('：', ':')
+
+    # 3. 先按分号和中文句号拆分
     pattern = r'(?<=;)|(?<=。)'
     split_strings = re.split(pattern, text)
-    split_strings = [s.strip().lstrip('0123456789.') for s in split_strings if s.strip()]
-    numbered_strings = [f"{i + 1}.{s}" for i, s in enumerate(split_strings)]
+
+    # 4. 进一步拆分无分隔符的连续编号项（如 "2.xxx3.yyy" → "2.xxx", "3.yyy"）
+    final = []
+    for s in split_strings:
+        s = s.strip().lstrip(';,;。，、 \t')
+        if not s:
+            continue
+        # 在 "非数字 + 1~2位数字 + 句点" 的边界处切分
+        parts = re.split(r'(?<=[^0-9])(?=[0-9]{1,2}\.)', s)
+        for part in parts:
+            part = part.strip().lstrip(';,;。，、 \t')
+            # 去掉开头的编号前缀（如 "1." → ""）和尾部残留标点
+            part = re.sub(r'^[0-9]{1,2}\.\s*', '', part)
+            part = part.rstrip(';:：；')
+            # 过滤掉过短的碎片（如孤立的乱码字符）
+            if len(part) >= 5:
+                final.append(part)
+
+    numbered_strings = [f"{i + 1}.{s}" for i, s in enumerate(final)]
     return numbered_strings
 
 

@@ -1,5 +1,5 @@
 """
-crop_by_label.py
+
 采用与 main.py 相同的 YOLOv5 ONNX 模型 (cstr.onnx)，
 对输入图片进行目标检测，将各标签对应的图块从原图中裁剪下来，
 并按标签名分类保存到对应的子文件夹中。
@@ -14,18 +14,16 @@ crop_by_label.py
     ├── title/
     ├── title bar/
     └── draw/
-
-运行方式:
-    python crop_by_label.py
 """
 
 import sys
 import os
 
-# 将 Annotation-test 目录加入搜索路径，以便导入 yolov5_partition
-ANNOTATION_DIR = os.path.join(os.path.dirname(__file__), '..', 'Annotation-test')
-ANNOTATION_DIR = os.path.abspath(ANNOTATION_DIR)
-sys.path.insert(0, ANNOTATION_DIR)
+# 模型目录
+_MODEL_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'model')
+
+# 将 model 目录加入搜索路径，以便导入 yolov5_partition
+sys.path.insert(0, _MODEL_DIR)
 
 import json
 import cv2
@@ -39,7 +37,7 @@ from PIL import Image
 from yolov5_partition import yolov5
 
 # 模型文件路径
-MODEL_PATH = os.path.join(ANNOTATION_DIR, 'cstr.onnx')
+MODEL_PATH = os.path.join(_MODEL_DIR, 'cstr.onnx')
 
 
 class ImageScroller(QWidget):
@@ -187,7 +185,7 @@ class CropApp(QWidget):
         if not os.path.exists(MODEL_PATH):
             QMessageBox.critical(self, '错误',
                                  f'模型文件未找到:\n{MODEL_PATH}\n\n'
-                                 f'请确认 cstr.onnx 位于 Annotation-test 目录下。')
+                                 f'请确认 cstr.onnx 位于 Location/model/ 目录下。')
             return
 
         try:

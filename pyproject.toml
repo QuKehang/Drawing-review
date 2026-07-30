@@ -41,3 +41,9 @@ rag = [
 ]
 
 [tool.uv]
+# ── 注意 ─────────────────────────────────────
+# albumentations → albucore 传递依赖 opencv-python-headless，
+# 该包与 opencv-python 冲突，会导致 cv2.imshow / namedWindow
+# 等 GUI 函数不可用。uv sync 后运行：
+#   uv run python scripts/fix_opencv.py
+# ────────────────────────────────────────────

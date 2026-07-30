@@ -1,20 +1,13 @@
 """
-launcher_fixed.py — 桥梁工程设计工具集 统一调度系统
-==============================================
-一键启动所有子工具，各工具以独立进程运行，互不干扰。
 
-用法：
-    python launcher_fixed.py
+
 
 工具列表：
   ① YOLO 标注裁剪       — 目标检测 + 按标签裁剪
   ② 设计说明判定         — OCR + BERT 分类
   ③ PP-OCR 表格识别      — PaddleOCR 表格结构化识别
   ④ 固定信息提取与对比   — 区域选取 + OCR + Excel 比对（修正版）
-  ⑤ 保护层厚度测量       — U-Net 分割 + 交互式测量
 
-与 launcher.py 的区别：
-  - 工具④ 指向 main_gui_v2_fixed.py（含对比逻辑修正 + OCR前自动清理缓存）
 """
 
 import os
@@ -58,8 +51,8 @@ TOOLS = [
         "desc": "基于 PaddleOCR 的表格\n结构化识别，支持 JSON 标注/直接识别模式",
         "icon": "📊",
         "color": "#d83b01",
-        "script": os.path.join(MIDTERM_DIR, "PP-OCR _table_reading", "Table_Recognition.py"),
-        "cwd": os.path.join(MIDTERM_DIR, "PP-OCR _table_reading"),
+        "script": os.path.join(MIDTERM_DIR, "PP-OCR_table_reading", "Table_Recognition.py"),
+        "cwd": os.path.join(MIDTERM_DIR, "PP-OCR_table_reading"),
     },
     {
         "id": "fixed_info",
@@ -67,8 +60,8 @@ TOOLS = [
         "desc": "OpenCV 交互式区域选取 → Tesseract OCR\n→ 与 Excel 参考表自动比对图名图号",
         "icon": "🔍",
         "color": "#6b3fa0",
-        "script": os.path.join(MIDTERM_DIR, "ProcessingofFixed_Information", "Completeness_check.py"),
-        "cwd": os.path.join(MIDTERM_DIR, "ProcessingofFixed_Information"),
+        "script": os.path.join(MIDTERM_DIR, "Completeness_check", "Completeness_check.py"),
+        "cwd": os.path.join(MIDTERM_DIR, "Completeness_check"),
     },
 ]
 

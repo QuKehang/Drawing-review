@@ -1,5 +1,4 @@
 """
-main_gui_v2_fixed.py
 整合区域选取 → 图像预处理+OCR识别 → 信息对比 的完整交互界面
 【修正版】修复了步骤③对比逻辑的以下问题：
   1. 标签行解析：原正则无法匹配 "1:" 等格式 → 改为通用标签-行解析
@@ -81,9 +80,7 @@ class Worker(QThread):
             self.finished_signal.emit(False, str(e), None)
 
 
-# ============================================================
-#  核心处理逻辑（从 tesseract.py & comparison.py 整合）
-# ============================================================
+
 def load_refPts(path):
     """加载区域坐标 JSON"""
     with open(path, 'r', encoding='utf-8') as f:
@@ -108,7 +105,7 @@ def preprocess_images_in_folder(input_folder, output_folder):
 def recognize_text_and_save_boxes(img_path, refPts, output_folder, lang='chi_sim+eng'):
     """OCR 识别单张图片并保存 box 信息"""
     import pytesseract
-    pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+    pytesseract.pytesseract.tesseract_cmd = r'Completeness_check\Tesseract-OCR\tesseract.exe'
 
     img = cv2.imread(img_path)
     if img is None:
