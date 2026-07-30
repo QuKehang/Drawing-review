@@ -80,10 +80,13 @@ Hugging Face 模型下载可能受限，项目已在脚本中自动配置 `HF_EN
 uv run python scripts/fix_opencv.py
 ```
 
-
 ### Tesseract OCR安装
-下载地址`https://github.com/UB-Mannheim/tesseract/wiki`，下载安装路径应置于Drawing_review\Completeness_check文件夹下
+下载地址`https://github.com/UB-Mannheim/tesseract/wiki`
+Tesseract OCR下载也可通过阿里云盘下载，链接为https://www.alipan.com/s/NshsKZPU32Z，位于drawing-review\OCR文件夹中
+下载后安装路径都应置于Drawing_review\Completeness_check文件夹下
 
+### YOLO预训练模型下载
+预训练模型文件格式为onnx，保存在阿里云盘中，链接为https://www.alipan.com/s/NshsKZPU32Z，位于其中drawing-review\Model Profile文件夹中
 
 ## 运行方式
 
