@@ -82,8 +82,10 @@ uv run python scripts/fix_opencv.py
 
 ### Tesseract OCR安装
 下载地址`https://github.com/UB-Mannheim/tesseract/wiki`
+安装时勾选中文语言包 (Chinese Simplified)
+
 Tesseract OCR下载也可通过阿里云盘下载，位于云盘的drawing-review\OCR文件夹，链接为https://www.alipan.com/s/NshsKZPU32Z
-下载后安装路径都应置于Drawing_review\Completeness_check文件夹下
+下载后安装路径都应置于Drawing_review文件夹下
 
 ### YOLO预训练模型下载
 预训练模型文件格式为onnx，保存在阿里云盘的drawing-review\Model Profile文件夹，链接为https://www.alipan.com/s/NshsKZPU32Z
@@ -117,6 +119,34 @@ uv run python Location/Drawing_location.py
 # 完整性检查 — 区域选取 + OCR + Excel 对比
 uv run python Completeness_check/Completeness_check.py
 ```
+
+# 设计说明判定系统 —— DeepSeek-R1 + RAG
+
+基于 **Ollama 本地部署的 DeepSeek-R1:8b** 模型，结合 **RAG（检索增强生成）** 知识库，
+对工程图纸中的附注（annotation）内容进行规范性判别，并**给出具体的判别依据**。
+
+## 功能特点
+
+- 🔍 **RAG 知识库**：支持用户自行添加 **txt / pdf / docx** 格式的技术规范文档
+- 🤖 **本地推理**：通过 Ollama 调用 DeepSeek-R1:8b，数据不出本机
+- 📝 **判据透明**：每条判别结果包含：判断结果 + 判断依据 + 参考规范条文 + 检索来源
+- 🖼️ **OCR 集成**：自动对图纸附注区域进行 OCR 文字识别后逐条判别
+- 🎛️ **PyQt5 桌面界面**：完整的知识库管理 + 文件选择 + 结果筛选 + JSON 导出
+
+## 环境准备
+
+### 1. 安装 Ollama 并拉取模型
+
+```bash
+# 下载安装 Ollama: https://ollama.com
+
+# 拉取推理模型（必选）
+ollama pull deepseek-r1:8b
+
+# 拉取嵌入模型（必选，用于向量搜索）
+ollama pull nomic-embed-text
+```
+
 
 ## 工具说明
 
