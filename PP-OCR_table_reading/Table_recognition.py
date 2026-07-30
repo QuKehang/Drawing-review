@@ -1,5 +1,4 @@
 """
-PP_OCR_gui_v4.py — PP-OCR 表格识别工具 (PaddleOCR 2.x + PP-OCRv4 模型)
 
 功能：
   - 两种模式：JSON 标注模式（根据标注裁剪后识别） / 直接识别模式（全图识别）
@@ -9,16 +8,6 @@ PP_OCR_gui_v4.py — PP-OCR 表格识别工具 (PaddleOCR 2.x + PP-OCRv4 模型)
   - 结果保存为 Excel (.xlsx) + HTML 格式
   - 裁剪保持原始分辨率（不缩放）
 
-运行方式：
-  python PP_OCR_gui_v4.py
-
-与 v3 版差异：
-  - 使用 PP-OCRv4 模型（ocr_version="PP-OCRv4"），模型自动下载缓存
-  - 适配 PaddleOCR 2.10.0：PPStructure (PP-Structure v1) + 直接调用
-  - PP-StructureV2 的 SLANet 模型为 PaddlePaddle 3.x 格式，Paddle 2.6.2 不兼容
-  - 禁用 ONEDNN/MKLDNN（PaddlePaddle 2.6.2 bug workaround）
-  - 裁剪不缩放，保持原始分辨率
-  - 修复 lambda 闭包 bug
 """
 
 import os
