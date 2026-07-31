@@ -376,7 +376,7 @@ uv run python Completeness_check/Completeness_check.py
 
 > **关于 GPU**：PaddleOCR (PP-OCRv4) 模型本身为轻量级设计，CPU 即可流畅运行，GPU 主要加速批量处理场景（约 2–5 倍）。少量图纸处理 CPU 完全足够。
 >
-> **启用 GPU 加速**：如需 GPU 推理，请使用 `pyproject-gpu.toml` 覆盖默认配置并安装 NVIDIA 运行库，详见上方「GPU 加速环境」章节。 
+> **启用 GPU 加速**：如需 GPU 推理，请使用 `pyproject-gpu.toml` 覆盖默认配置并安装 NVIDIA 运行库，详见上方「GPU 加速环境」章节。
 
 ### 完整配置（含 RAG + DeepSeek-R1:8b）
 
