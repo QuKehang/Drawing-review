@@ -7,7 +7,7 @@
 ```
 drawing-review/
 ├── pyproject.toml                          # uv 项目配置
-├── launcher_v2.py                          # 统一调度系统（一键启动）
+├── launcher.py                             # 统一调度系统（一键启动）
 ├── uv.lock                                 # 依赖锁定文件
 │
 ├── Annotation-test/                        # ① 设计说明判定（BERT）
@@ -23,7 +23,7 @@ drawing-review/
 │       ├── cstr.onnx                       #    ONNX 权重
 │       └── yolov5_partition.py             #    YOLOv5 推理引擎
 │
-├── PP-OCR _table_reading/                  # ④ 表格识别
+├── PP-OCR_table_reading/                   # ④ 表格识别
 │   └── Table_recognition.py                #    PP-OCRv4 表格结构化识别
 │
 ├── Code_of_Bert_Trainning/                 # ⑤ BERT 模型训练
@@ -68,12 +68,12 @@ uv sync --extra rag
 ```
 > 仅 `Annotation_check_with.py` 和 `RAG.py` 需要 RAG 额外依赖（LangChain、ChromaDB、Ollama 等）。
 
-
 ### 国内网络适配
 
 Hugging Face 模型下载可能受限，项目已在脚本中自动配置 `HF_ENDPOINT=https://hf-mirror.com` 镜像站。
 
 ### 检验配置环境（OpenCV GUI 修复）
+
 `albumentations → albucore` 传递依赖 `opencv-python-headless`，该包与 `opencv-python` 的 GUI 功能冲突，会导致 `cv2.namedWindow` / `cv2.imshow` 不可用。`uv sync` 后运行：
 
 ```bash
@@ -90,41 +90,113 @@ Tesseract OCR下载也可通过阿里云盘下载，位于云盘的drawing-revie
 ### YOLO预训练模型下载
 预训练模型文件格式为onnx，保存在阿里云盘的drawing-review\Model Profile文件夹，链接为https://www.alipan.com/s/NshsKZPU32Z
 
-## 运行方式
+---
+
+## 各模块操作步骤
 
 ### 统一调度系统（推荐）
+
+项目提供了 PyQt5 图形化统一调度平台，可一键启动各子工具：
 
 ```bash
 uv run python launcher.py
 ```
 
-### 单独运行各工具
+在调度界面中选择 Python 环境后，点击对应工具卡片的「▶ 启动」按钮即可运行。各工具以独立进程运行，关闭调度窗口不影响已启动的工具。
+
+---
+
+### ① YOLO 标注裁剪 — 目标检测 & 区域裁剪
+
+**功能**：使用 YOLOv5 ONNX 模型检测图纸中的图名、标注、标题栏、绘图区域并自动裁剪分类保存。
+
+**启动方式**：
 
 ```bash
-# BERT 模型训练（首次使用前必须运行一次）
-uv run python Code_of_Bert_Trainning/Design_Judge.py
-
-# 设计说明判定 — 直接处理裁剪图块（BERT）
-uv run python Annotation-test/Annotation_check_without.py
-
-# 设计说明判定 — RAG + DeepSeek 判别
-uv run python Annotation-test-RAG/Annotation_check_with.py
-
-# 表格识别
-uv run python PP-OCR_table_reading/Table_recognition.py
-
-# 目标检测裁剪 — 按标签分类保存
 uv run python Location/Drawing_location.py
-
-# 完整性检查 — 区域选取 + OCR + Excel 对比
-uv run python Completeness_check/Completeness_check.py
 ```
 
-## 基于LLM的设计说明判定系统—— DeepSeek-R1 + RAG
+**操作步骤**：
 
-基于 **Ollama 本地部署的 DeepSeek-R1:8b** 模型，结合 **RAG（检索增强生成）** 知识库
+1. **选择输入目录** → 点击「选择文件夹」，选择包含待处理图纸图片（`.png` / `.jpg` / `.jpeg`）的文件夹
+2. **选择输出目录** → 选择裁剪结果的保存位置
+3. **预览图片** → 界面左侧将显示输入目录中的图片缩略图，可滚动浏览
+4. **运行检测** → 点击「▶ 运行检测」，系统将使用 `cstr.onnx` 模型对每张图片进行目标检测
+5. **查看结果** → 裁剪结果按标签分类保存，输出结构如下：
 
-### 安装 Ollama 并拉取模型
+```
+output_root/
+├── figue/        # 图名区域
+├── annotation/   # 标注/附注区域
+├── title/        # 标题区域
+├── title bar/    # 标题栏区域
+└── draw/         # 绘图区域
+```
+
+**依赖**：YOLOv5 ONNX 模型（`Location/model/cstr.onnx`）+ PyQt5 GUI
+
+---
+
+### ② BERT 模型训练 — 设计说明合规性判别模型
+
+**功能**：基于 `bert-base-chinese` 微调二分类模型（符合规范 / 不符合规范），为设计说明判定工具提供推理模型。
+
+> ⚠️ **首次使用前必须运行此步骤**，训练完成后会在项目根目录生成 `bert_model_trained/` 文件夹。
+
+**启动方式**：
+
+```bash
+uv run python Code_of_Bert_Trainning/Design_Judge.py
+```
+
+**操作步骤**：
+
+1. **准备训练数据** → 确保 `Code_of_Bert_Trainning/` 目录下存在以下文件：
+   - `design_spec.txt` — 正例训练数据（符合规范的设计说明条文）
+   - `relation_no.txt` — 负例训练数据（不符合规范的文本示例）
+2. **运行训练** → 执行脚本，将自动完成数据加载、模型微调、保存
+3. **验证产出** → 确认 `bert_model_trained/` 目录下生成了 `config.json`、`model.safetensors`、`tokenizer.json` 等文件
+
+**训练参数**（可在脚本中修改）：
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `MAX_LENGTH` | 128 | 最大序列长度 |
+| `BATCH_SIZE` | 32 | 训练批次大小 |
+| `EPOCHS` | 3 | 训练轮数 |
+| `LEARNING_RATE` | 2e-5 | 学习率 |
+
+---
+
+### ③ 设计说明判定（BERT） — OCR + BERT 文本分类
+
+**功能**：直接对已裁剪好的 annotation 图块文件夹进行 OCR 识别，使用本地 BERT 模型逐条判定每条附注是否符合设计说明规范。
+
+**启动方式**：
+
+```bash
+uv run python Annotation-test/Annotation_check_without.py
+```
+
+**操作步骤**：
+
+1. **准备裁剪图块** → 确保已有裁剪好的 annotation 区域图片（可由「YOLO 标注裁剪」工具生成）
+2. **选择输入目录** → 点击「选择文件夹」，选择包含 annotation 裁剪图块的文件夹
+3. **运行判定** → 点击「运行判别」，系统将：
+   - 对每张裁剪图片进行预处理（对比度增强、中值滤波、二值化）
+   - 使用 PaddleOCR 识别文字
+   - 智能分句（支持全角/半角标点混合、连续编号项自动拆分）
+   - 使用 BERT 模型逐条判定合规性
+4. **查看结果** → 每条附注显示「符合设计说明」或「不符合设计说明」的分类结果
+
+**前置条件**：必须先运行「BERT 模型训练」生成 `bert_model_trained/` 模型文件。
+
+---
+
+### ④ 基于 LLM 的设计说明判定 — DeepSeek-R1 + RAG
+
+基于 **Ollama 本地部署的 DeepSeek-R1:8b** 模型，结合 **RAG（检索增强生成）** 知识库，对图纸附注进行智能合规性判别。相比纯 BERT 方案，能够给出详细的判断依据和引用的规范条文。
+
+#### 安装 Ollama 并拉取模型
 
 ```bash
 # 下载安装 Ollama: https://ollama.com
@@ -136,7 +208,13 @@ ollama pull deepseek-r1:8b
 ollama pull nomic-embed-text
 ```
 
-### 操作步骤
+#### 启动方式
+
+```bash
+uv run python Annotation-test-RAG/Annotation_check_with.py
+```
+
+#### 操作步骤
 
 1. **配置模型** → 确认 LLM 模型 (`deepseek-r1:8b`) 和 Embedding 模型 (`nomic-embed-text`) 已安装
 
@@ -144,19 +222,21 @@ ollama pull nomic-embed-text
 
 3. **添加文档** → 可随时点击「添加文档」追加新的规范文件到知识库
 
-4. **选择文件** → 选择包含图纸图片的文件夹和对应的 JSON 标注文件夹
+4. **选择文件夹** → 分别选择：
+   - 裁剪图块文件夹（annotation 区域图片）
+   - 输出结果保存文件夹
 
 5. **运行判别** → 点击「▶ 运行判别」，系统会：
-   - 读取 JSON 中的 annotation 坐标
-   - 裁切图片区域并 OCR 识别文字
-   - 对每条附注在知识库中检索相关规范
+   - 对每张裁剪图片进行预处理和 OCR 识别
+   - 智能分句拆分每条附注
+   - 在知识库中检索相关技术规范
    - 由 DeepSeek-R1 综合判断并给出依据
 
-6. **查看结果** → 可按「符合规范/不符合规范/无明确规定」筛选查看
+6. **查看结果** → 可按「符合规范 / 不符合规范 / 无明确规定」分类筛选查看
 
 7. **导出结果** → 点击「导出结果 (JSON)」保存完整判别记录
 
-## 判别结果格式
+#### 判别结果格式
 
 每条判别输出包含：
 
@@ -170,17 +250,65 @@ ollama pull nomic-embed-text
 检索来源: 公路钢混组合桥梁设计与施工规范.txt(p.?), ...
 ```
 
+---
 
+### ⑤ PP-OCR 表格识别 — 图纸表格结构化提取
 
-## 工具说明
+**功能**：基于 PaddleOCR (PP-OCRv4 + PP-Structure) 对图纸中的表格进行结构化识别，支持两种模式。
 
-| 工具 | 功能 | 核心技术 | 关键文件 |
-|------|------|---------|----------|
-| BERT 训练 | 微调 bert-base-chinese 二分类模型 | Transformers + PyTorch | `Design_Judge.py` |
-| 设计说明判定 | OCR 提取图纸附注 → 逐条判定合规性 | PaddleOCR + BERT / DeepSeek-R1 | `Annotation_check_without.py` |
-| 表格识别 | 图纸表格结构化提取 → Excel/HTML | PP-OCRv4 + PP-Structure | `Table_recognition.py` |
-| 目标检测裁剪 | 检测图纸区域 → 按标签分类裁剪 | YOLOv5 ONNX + PyQt5 | `Drawing_location.py` |
-| 完整性检查 | 区域选取 → OCR → Excel 信息对比 | Tesseract + PyQt5 + OpenCV | `Completeness_check.py` |
+**启动方式**：
+
+```bash
+uv run python PP-OCR_table_reading/Table_recognition.py
+```
+
+**操作步骤**：
+
+1. **选择模式** → 在 GUI 界面中选择识别模式：
+   - **JSON 标注模式**：根据 JSON 标注坐标裁剪表格区域后识别（适用于已标注的图纸）
+   - **直接识别模式**：直接对整张图纸进行表格检测和识别
+2. **选择目录** → 分别选择：
+   - 输入图片/JSON 文件夹
+   - 输出结果保存文件夹
+3. **运行识别** → 点击运行，系统将：
+   - 根据模式裁剪或检测表格区域
+   - 使用 PP-Structure 进行表格结构化识别
+4. **查看结果** → 结果保存为 Excel (`.xlsx`) + 文本 (`.txt`) 格式：
+
+```
+Output/
+├── cropped_page_1_figue_2/
+│   ├── [16, 20, 549, 624]_0.xlsx    # 表格数据
+│   └── res_0.txt                    # 识别文本
+└── ...
+```
+
+---
+
+### ⑥ 固定信息提取与对比 — 完整性检查
+
+**功能**：通过 OpenCV 交互式区域选取 → Tesseract OCR 识别 → 与 Excel 参考表自动比对，验证图纸的图名图号等信息完整性。
+
+**启动方式**：
+
+```bash
+uv run python Completeness_check/Completeness_check.py
+```
+
+**操作步骤**：
+
+1. **区域选取** → 在图纸图片上使用鼠标框选需要 OCR 识别的固定信息区域（如图名、图号位置）
+2. **保存参考点** → 将选取的区域坐标保存为 `refPts/*.json` 参考点文件
+3. **OCR 识别** → 系统使用 Tesseract 对选取区域进行文字识别，输出到 `output/recognition_result.txt`
+4. **信息对比** → 加载 Excel 参考表（`reference.xlsx`），将 OCR 识别结果与参考表进行自动比对：
+   - 按图号范围 + 图名模式匹配
+   - 支持单页 (`N:`) 和多页 (`page_N:`) 两种标注格式
+   - 自动标记匹配/不匹配项
+5. **查看结果** → 在 GUI 的对比表格中查看匹配状态，定位不一致的条目
+
+**前置条件**：需安装 Tesseract OCR 并将安装目录置于 `Completeness_check/` 下（见上方 Tesseract OCR 安装说明）。
+
+---
 
 ## 核心技术栈
 
@@ -211,3 +339,4 @@ ollama pull nomic-embed-text
 2. **OpenCV GUI**：`uv sync` 后 `opencv-python-headless` 可能被自动安装，运行 `uv run python scripts/fix_opencv.py` 即可修复。
 3. **模型路径**：YOLOv5 模型（`cstr.onnx`）和推理脚本位于 `Location/model/` 目录下。
 4. **逐条检验**：设计说明判定已优化分句逻辑，支持全角/半角标点混合、连续编号项自动拆分，确保每条附注独立判定。
+5. **Tesseract 路径**：完整性检查模块依赖 Tesseract OCR，需单独安装并将安装目录置于 `Completeness_check/` 下。
