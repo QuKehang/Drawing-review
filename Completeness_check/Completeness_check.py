@@ -105,7 +105,7 @@ def preprocess_images_in_folder(input_folder, output_folder):
 def recognize_text_and_save_boxes(img_path, refPts, output_folder, lang='chi_sim+eng'):
     """OCR 识别单张图片并保存 box 信息"""
     import pytesseract
-    pytesseract.pytesseract.tesseract_cmd = r'Completeness_check\Tesseract-OCR\tesseract.exe'
+    pytesseract.pytesseract.tesseract_cmd = r'Tesseract-OCR\tesseract.exe'
 
     img = cv2.imread(img_path)
     if img is None:
