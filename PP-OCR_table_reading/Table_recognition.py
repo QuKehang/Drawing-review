@@ -1,40 +1,9 @@
-"""
-PP_OCR_gui_v4.py — PP-OCR 表格识别工具 (PaddleOCR 2.x + PP-OCRv4 模型)
-
-功能：
-  - 两种模式：JSON 标注模式（根据标注裁剪后识别） / 直接识别模式（全图识别）
-  - 文件夹浏览选择
-  - 后台线程处理，界面不卡顿
-  - 实时日志输出到 GUI 文本框
-  - 结果保存为 Excel (.xlsx) + HTML 格式
-  - 裁剪保持原始分辨率（不缩放）
-
-运行方式：
-  python PP_OCR_gui_v4.py
-
-与 v3 版差异：
-  - 使用 PP-OCRv4 模型（ocr_version="PP-OCRv4"），模型自动下载缓存
-  - 适配 PaddleOCR 2.10.0：PPStructure (PP-Structure v1) + 直接调用
-  - PP-StructureV2 的 SLANet 模型为 PaddlePaddle 3.x 格式，Paddle 2.6.2 不兼容
-  - 禁用 ONEDNN/MKLDNN（PaddlePaddle 2.6.2 bug workaround）
-  - 裁剪不缩放，保持原始分辨率
-  - 修复 lambda 闭包 bug
-"""
-
 import os
 import sys
-
-# ---- 在导入 paddleocr 前禁用 ONEDNN/MKLDNN，避免 PIR 属性转换错误 ----
-# PaddleX 默认启用 MKLDNN (ONEDNN) 但 PaddlePaddle 2.6.2 的 ONEDNN 后端
-# 不支持 PIR ArrayAttribute<DoubleAttribute> 转换，导致推理崩溃
 os.environ.setdefault("PADDLE_PDX_ENABLE_MKLDNN_BYDEFAULT", "0")
 os.environ["FLAGS_use_mkldnn"] = "0"
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
-# ---- Windows DLL 修复：必须在 paddleocr 之前显式导入 torch ----
-# paddleocr → albumentations → torch 的长导入链中，Python GC 会回收
-# os.add_dll_directory 返回的 DLL cookie 对象，导致 shm.dll 加载失败 (OSError 127)
-# 显式 import torch 确保 _load_dll_libraries() 在干净的 GC 上下文中运行
 if sys.platform == "win32":
     _torch_lib = os.path.join(sys.prefix, "Lib", "site-packages", "torch", "lib")
     if os.path.isdir(_torch_lib):
@@ -48,6 +17,28 @@ import io
 import traceback
 import numpy as np
 import re
+from copy import deepcopy
+
+# =====================================================================
+# 中文路径兼容（OpenCV C++ 后端不支持 Unicode 路径）
+# =====================================================================
+def imread_unicode(path: str, flags: int = cv2.IMREAD_COLOR):
+    """读取图像，支持中文路径"""
+    data = np.fromfile(path, dtype=np.uint8)
+    if data is None:
+        return None
+    return cv2.imdecode(data, flags)
+
+
+def imwrite_unicode(path: str, img) -> bool:
+    """保存图像，支持中文路径"""
+    ext = os.path.splitext(path)[1]
+    success, buf = cv2.imencode(ext, img)
+    if not success:
+        return False
+    buf.tofile(path)
+    return True
+
 
 # =====================================================================
 # 环境检查 (在 GUI 启动前完成)
@@ -56,7 +47,7 @@ PADDLE_AVAILABLE = False
 IMPORT_ERROR_MSG = ""
 
 try:
-    from paddleocr import PPStructure, save_structure_res
+    from paddleocr import PPStructure
     PADDLE_AVAILABLE = True
 except ImportError as e:
     IMPORT_ERROR_MSG = (
@@ -74,9 +65,8 @@ except ImportError as e:
 # =====================================================================
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-DEFAULT_IMG_FOLDER = os.path.join(SCRIPT_DIR, "cropped_images")
-DEFAULT_RESULTS_DIR = os.path.join(SCRIPT_DIR, "results")
-DEFAULT_CROPPED_DIR = os.path.join(SCRIPT_DIR, "cropped_images")
+DEFAULT_IMG_FOLDER = os.path.join(SCRIPT_DIR, "Table_Images")
+DEFAULT_RESULTS_DIR = os.path.join(SCRIPT_DIR, "Output")
 
 # =====================================================================
 # tkinter 导入
@@ -145,13 +135,6 @@ def preprocess_image(img, intensity="medium"):
 
     return result
 
-
-# =====================================================================
-# 速度预设 & 预测参数
-# =====================================================================
-# "准确"档保持与原始 PP-OCRv4 一致的精度参数。
-# "均衡"和"快速"档会降低检测分辨率/关闭文字方向校正，可能影响小文字和旋转文字。
-# 所有档位均已关闭无关管线（印章/公式/图表/区域检测），这些不影响表格识别精度。
 SPEED_PRESETS = {
     # ---- 快速：降低分辨率 + 跳过后处理（精度有损） ----
     "fast": {
@@ -350,19 +333,7 @@ def postprocess_table_html(html_content, log_func=print):
 # 表格 HTML 重建 —— 修复 PP-Structure 模型的列合并问题
 # =====================================================================
 def rebuild_table_html(boxes, rec_res):
-    """从 cell bounding boxes 和 OCR 结果重建 HTML 表格。
-
-    PP-Structure v1 模型的 HTML 生成在列间距较窄时会错误合并相邻列
-    （例如将"图幅"和"张数"合并为一个单元格）。此函数绕过模型 HTML，
-    直接根据 bbox 坐标聚类出正确的行列结构。
-
-    参数：
-        boxes: list of [x1, y1, x2, y2]，每个 cell 的整数坐标
-        rec_res: list of [text, confidence]，每个 cell 的识别结果
-
-    返回：
-        str: 重建后的完整 HTML 表格字符串
-    """
+    
     if not boxes or not rec_res:
         return "<html><body><table></table></body></html>"
 
@@ -509,176 +480,73 @@ def init_table_engine(log_func=print, speed="accurate"):
     return engine
 
 
-def crop_table_region(img, coordinates, cropped_dir, json_path, index, log_func=print):
-    """裁剪表格区域，保持原始分辨率"""
-    x1, y1 = int(coordinates["left"]), int(coordinates["top"])
-    x2, y2 = int(coordinates["right"]), int(coordinates["bottom"])
+def _save_table_results(res, save_folder, img_name, log_func=print):
+    """保存表格识别结果为 Excel + HTML + JSON 摘要"""
+    import pandas as pd
 
-    h, w = img.shape[:2]
-    x1, y1 = max(0, x1), max(0, y1)
-    x2, y2 = min(w, x2), min(h, y2)
+    excel_save_folder = os.path.join(save_folder, img_name)
+    os.makedirs(excel_save_folder, exist_ok=True)
 
-    if x2 <= x1 or y2 <= y1:
-        log_func(f"  警告: 无效坐标 ({x1},{y1})-({x2},{y2})，跳过")
-        return None, None
+    # 统计表格数量，用于编号
+    table_idx = 0
 
-    cropped = img[y1:y2, x1:x2]
-    if cropped.size == 0:
-        log_func(f"  警告: 裁剪图像为空，跳过")
-        return None, None
+    # 保存每个区域的 JSON 信息
+    res_lines = []
+    for region in deepcopy(res):
+        roi_img = region.pop("img", None)
+        res_lines.append(json.dumps(region, ensure_ascii=False))
 
-    base = os.path.basename(json_path).replace(".json", "")
-    filename = f"cropped_{base}_figue_{index}.png"
-    path = os.path.join(cropped_dir, filename)
-    cv2.imwrite(path, cropped)
-    log_func(f"  裁剪保存: {path} ({cropped.shape[1]}x{cropped.shape[0]})")
+        if (region["type"].lower() == "table"
+                and len(region.get("res", {})) > 0
+                and "html" in region["res"]):
+            table_idx += 1
+            # ---- 后处理：图号修正 ----
+            html = region["res"]["html"]
+            html = postprocess_table_html(html, log_func=log_func)
 
-    return cropped, path
-
-
-def recognize_and_save(cropped_img, cropped_path, engine, results_dir, json_path, index,
-                       preprocessing_enabled=True, log_func=print, speed="balanced"):
-    """识别并保存结构化结果（含预处理回退 & 图号后处理）"""
-    try:
-        result, metadata = recognize_with_fallback(
-            cropped_img, engine,
-            preprocessing_enabled=preprocessing_enabled,
-            log_func=log_func,
-            speed=speed,
-        )
-
-        base = os.path.basename(json_path).replace(".json", "")
-        result_filename = f"res_{base}_figue_{index}"
-        if result and len(result) > 0:
-            fix_table_results(result)  # 修复列合并问题
-            save_structure_res(result, results_dir, result_filename)
-            save_path = os.path.join(results_dir, result_filename)
-            log_func(f"  -> 结果已保存: {save_path}")
-
-            # 后处理：对保存的 txt 结果文件中的 HTML 表格做图号修正
-            _postprocess_saved_results(save_path, log_func=log_func)
-
-            if metadata.get("fallback_triggered"):
-                log_func(f"  -> 预处理回退已触发 (置信度提升)")
-            return True
-        else:
-            log_func(f"  未检测到结果 (figue_{index})")
-            return False
-    except Exception as e:
-        log_func(f"  识别失败 (figue_{index}): {e}")
-        return False
-
-
-def _postprocess_saved_results(save_path, log_func=print):
-    """对 save_structure_res() 保存的结果文件进行后处理
-
-    save_structure_res 对每个 table region 保存 xxx.xlsx 和 res_X.txt (JSON 行格式)。
-    txt 文件中每行是一个 JSON 对象，table 类型的 res 字段包含 {"html": "..."}。
-    """
-    if not os.path.isdir(save_path):
-        return
-    for fname in os.listdir(save_path):
-        if not fname.startswith("res_") or not fname.endswith(".txt"):
-            continue
-        fpath = os.path.join(save_path, fname)
-        try:
-            with open(fpath, "r", encoding="utf-8") as f:
-                lines = f.readlines()
-
-            modified = False
-            new_lines = []
-            for line in lines:
-                line = line.strip()
-                if not line:
-                    new_lines.append(line)
-                    continue
+            # ---- 保存 Excel：{img_name}_{序号}.xlsx ----
+            excel_path = os.path.join(
+                excel_save_folder, f"{img_name}_{table_idx}.xlsx"
+            )
+            try:
+                # 优先使用 tablepyxl（保留样式）
                 try:
-                    region = json.loads(line)
-                except json.JSONDecodeError:
-                    new_lines.append(line)
-                    continue
+                    from tablepyxl import tablepyxl
+                    tablepyxl.document_to_xl(html, excel_path)
+                except ImportError:
+                    # 回退到 pandas
+                    dfs = pd.read_html(html)
+                    if dfs:
+                        dfs[0].to_excel(excel_path, index=False)
+                    else:
+                        log_func(f"  警告: 无法从 HTML 解析表格数据")
+                        continue
+                log_func(f"  -> 表格 {table_idx} 已保存: {excel_path}")
+            except Exception as e:
+                log_func(f"  错误: 保存表格 {table_idx} 失败: {e}")
 
-                # 处理 table 类型：res 字段包含 HTML
-                if region.get("type") == "table" and isinstance(region.get("res"), dict):
-                    html = region["res"].get("html", "")
-                    if html:
-                        new_html = postprocess_table_html(html, log_func=log_func)
-                        if new_html != html:
-                            region["res"]["html"] = new_html
-                            modified = True
+        elif region["type"].lower() == "figure" and roi_img is not None:
+            fig_path = os.path.join(
+                excel_save_folder, f"{img_name}_fig_{table_idx}.jpg"
+            )
+            imwrite_unicode(fig_path, roi_img)
 
-                new_lines.append(json.dumps(region, ensure_ascii=False))
+    # ---- 保存识别文本摘要 ----
+    txt_path = os.path.join(excel_save_folder, f"{img_name}_res.txt")
+    try:
+        with open(txt_path, "w", encoding="utf-8") as f:
+            f.write("\n".join(res_lines) + "\n")
+        log_func(f"  -> 识别摘要已保存: {txt_path}")
+    except Exception as e:
+        log_func(f"  错误: 保存识别摘要失败: {e}")
 
-            if modified:
-                with open(fpath, "w", encoding="utf-8") as f:
-                    f.write("\n".join(new_lines) + "\n")
-        except Exception:
-            pass  # 后处理为 best-effort
-
-
-def run_json_mode(json_folder, img_folder, results_dir, cropped_dir,
-                  preprocessing_enabled=True, log_func=print, speed="balanced"):
-    """JSON 标注模式"""
-    log_func("\n=== JSON 标注模式 ===")
-    log_func(f"速度预设: {speed} | 预处理: {'开' if preprocessing_enabled else '关'}")
-
-    if not os.path.exists(json_folder):
-        log_func(f"错误: JSON 文件夹不存在 -> {json_folder}")
-        return
-    if not os.path.exists(img_folder):
-        log_func(f"错误: 图像文件夹不存在 -> {img_folder}")
-        return
-
-    json_files = [os.path.join(json_folder, f) for f in os.listdir(json_folder) if f.endswith(".json")]
-    if not json_files:
-        log_func(f"在 {json_folder} 中没有找到 JSON 文件。")
-        return
-
-    log_func(f"找到 {len(json_files)} 个 JSON 标注文件")
-
-    # 初始化引擎（传入速度预设）
-    engine = init_table_engine(log_func, speed=speed)
-
-    total_figures = 0
-    success_count = 0
-    for jf in json_files:
-        log_func(f"\n处理: {os.path.basename(jf)}")
-        try:
-            with open(jf, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-
-            img_filename = os.path.basename(jf).replace(".json", ".png")
-            img_path = os.path.join(img_folder, img_filename)
-            img = cv2.imread(img_path)
-            if img is None:
-                log_func(f"  无法读取图像: {img_filename}")
-                continue
-
-            for i, item in enumerate(data):
-                if "figue" in item.get("label", ""):
-                    total_figures += 1
-                    cropped, cropped_path = crop_table_region(
-                        img, item["coordinates"], cropped_dir, jf, i, log_func
-                    )
-                    if cropped is not None:
-                        if recognize_and_save(
-                            cropped, cropped_path, engine, results_dir, jf, i,
-                            preprocessing_enabled=preprocessing_enabled,
-                            log_func=log_func,
-                            speed=speed,
-                        ):
-                            success_count += 1
-        except Exception as e:
-            log_func(f"  处理 {os.path.basename(jf)} 时出错: {e}")
-            traceback.print_exc()
-
-    log_func(f"\n处理完成: {success_count}/{total_figures} 个表格成功识别")
+    return excel_save_folder
 
 
 def run_direct_mode(img_folder, results_dir, preprocessing_enabled=True, log_func=print,
-                    speed="balanced"):
-    """直接识别模式"""
-    log_func("\n=== 直接识别模式 ===")
+                    speed="balanced", progress_callback=None):
+    """直接识别模式（全图表格识别）"""
+    log_func("\n=== 表格识别 ===")
     log_func(f"速度预设: {speed} | 预处理: {'开' if preprocessing_enabled else '关'}")
 
     if not os.path.exists(img_folder):
@@ -691,18 +559,21 @@ def run_direct_mode(img_folder, results_dir, preprocessing_enabled=True, log_fun
         log_func(f"在 {img_folder} 中没有找到图像文件。")
         return
 
-    log_func(f"找到 {len(img_files)} 张图片")
+    total = len(img_files)
+    log_func(f"找到 {total} 张图片")
 
     # 初始化引擎（传入速度预设）
     engine = init_table_engine(log_func, speed=speed)
 
     success_count = 0
-    for img_file in img_files:
+    for i, img_file in enumerate(img_files):
         img_path = os.path.join(img_folder, img_file)
-        log_func(f"\n处理: {img_file}")
-        img = cv2.imread(img_path)
+        log_func(f"\n处理 ({i + 1}/{total}): {img_file}")
+        img = imread_unicode(img_path)
         if img is None:
             log_func(f"  无法读取图像: {img_file}")
+            if progress_callback:
+                progress_callback(i + 1, total)
             continue
 
         try:
@@ -716,18 +587,18 @@ def run_direct_mode(img_folder, results_dir, preprocessing_enabled=True, log_fun
             img_name = os.path.splitext(img_file)[0]
             if result and len(result) > 0:
                 fix_table_results(result)  # 修复列合并问题
-                save_structure_res(result, results_dir, img_name)
-                save_path = os.path.join(results_dir, img_name)
+                save_path = _save_table_results(result, results_dir, img_name, log_func=log_func)
                 log_func(f"  -> 结果已保存: {save_path} ({len(result)} 个区域)")
-                # 后处理：对保存的结果做图号修正
-                _postprocess_saved_results(save_path, log_func=log_func)
                 success_count += 1
             else:
                 log_func(f"  -> 未检测到表格结构")
         except Exception as e:
             log_func(f"  识别失败: {e}")
 
-    log_func(f"\n处理完成: {success_count}/{len(img_files)} 张图片成功识别")
+        if progress_callback:
+            progress_callback(i + 1, total)
+
+    log_func(f"\n处理完成: {success_count}/{total} 张图片成功识别")
 
 # =====================================================================
 # GUI 应用程序类
@@ -766,66 +637,27 @@ class PPOCRApp:
         )
         title_label.grid(row=0, column=0, columnspan=3, pady=(0, 15))
 
-        # ===== 模式选择 =====
-        mode_frame = ttk.LabelFrame(main_frame, text="识别模式", padding="10")
-        mode_frame.grid(row=1, column=0, columnspan=3, sticky="ew", pady=(0, 10))
-
-        self.mode_var = tk.StringVar(value="direct")
-        ttk.Radiobutton(
-            mode_frame, text="直接识别模式 (全图识别，无需标注文件)",
-            variable=self.mode_var, value="direct",
-            command=self._on_mode_change
-        ).grid(row=0, column=0, sticky="w", pady=2)
-        ttk.Radiobutton(
-            mode_frame, text="JSON 标注模式 (根据标注坐标裁剪后识别)",
-            variable=self.mode_var, value="json",
-            command=self._on_mode_change
-        ).grid(row=1, column=0, sticky="w", pady=2)
-
         # ===== 路径配置 =====
         path_frame = ttk.LabelFrame(main_frame, text="路径设置", padding="10")
-        path_frame.grid(row=2, column=0, columnspan=3, sticky="ew", pady=(0, 10))
-
-        # JSON 文件夹
-        self.json_label = ttk.Label(path_frame, text="JSON 文件夹:")
-        self.json_label.grid(row=0, column=0, sticky="w", pady=5)
-        self.json_var = tk.StringVar()
-        self.json_entry = ttk.Entry(path_frame, textvariable=self.json_var, width=55)
-        self.json_entry.grid(row=0, column=1, padx=5, pady=5)
-        self.json_btn = ttk.Button(path_frame, text="浏览...",
-                                   command=lambda: self._browse_folder(self.json_var))
-        self.json_btn.grid(row=0, column=2, pady=5)
+        path_frame.grid(row=1, column=0, columnspan=3, sticky="ew", pady=(0, 10))
 
         # 图片文件夹
-        ttk.Label(path_frame, text="图片文件夹:").grid(row=1, column=0, sticky="w", pady=5)
+        ttk.Label(path_frame, text="图片文件夹:").grid(row=0, column=0, sticky="w", pady=5)
         self.img_var = tk.StringVar(value=DEFAULT_IMG_FOLDER)
-        ttk.Entry(path_frame, textvariable=self.img_var, width=55).grid(row=1, column=1, padx=5, pady=5)
+        ttk.Entry(path_frame, textvariable=self.img_var, width=55).grid(row=0, column=1, padx=5, pady=5)
         ttk.Button(path_frame, text="浏览...",
-                   command=lambda: self._browse_folder(self.img_var)).grid(row=1, column=2, pady=5)
+                   command=lambda: self._browse_folder(self.img_var)).grid(row=0, column=2, pady=5)
 
         # 结果保存路径
-        ttk.Label(path_frame, text="结果保存路径:").grid(row=2, column=0, sticky="w", pady=5)
+        ttk.Label(path_frame, text="结果保存路径:").grid(row=1, column=0, sticky="w", pady=5)
         self.results_var = tk.StringVar(value=DEFAULT_RESULTS_DIR)
-        ttk.Entry(path_frame, textvariable=self.results_var, width=55).grid(row=2, column=1, padx=5, pady=5)
+        ttk.Entry(path_frame, textvariable=self.results_var, width=55).grid(row=1, column=1, padx=5, pady=5)
         ttk.Button(path_frame, text="浏览...",
-                   command=lambda: self._browse_folder(self.results_var)).grid(row=2, column=2, pady=5)
-
-        # 裁剪图片保存路径
-        self.crop_label = ttk.Label(path_frame, text="裁剪图片保存路径:")
-        self.crop_label.grid(row=3, column=0, sticky="w", pady=5)
-        self.crop_var = tk.StringVar(value=DEFAULT_CROPPED_DIR)
-        self.crop_entry = ttk.Entry(path_frame, textvariable=self.crop_var, width=55)
-        self.crop_entry.grid(row=3, column=1, padx=5, pady=5)
-        self.crop_btn = ttk.Button(path_frame, text="浏览...",
-                                   command=lambda: self._browse_folder(self.crop_var))
-        self.crop_btn.grid(row=3, column=2, pady=5)
-
-        # 初始模式：direct → 隐藏 JSON 和裁剪路径
-        self._on_mode_change()
+                   command=lambda: self._browse_folder(self.results_var)).grid(row=1, column=2, pady=5)
 
         # ===== 速度预设 =====
         speed_frame = ttk.LabelFrame(main_frame, text="速度预设", padding="10")
-        speed_frame.grid(row=3, column=0, columnspan=3, sticky="ew", pady=(0, 10))
+        speed_frame.grid(row=2, column=0, columnspan=3, sticky="ew", pady=(0, 10))
 
         self.speed_var = tk.StringVar(value="accurate")
         speed_desc = {
@@ -843,7 +675,7 @@ class PPOCRApp:
 
         # ===== 预处理控制 =====
         preproc_frame = ttk.LabelFrame(main_frame, text="图像预处理", padding="10")
-        preproc_frame.grid(row=4, column=0, columnspan=3, sticky="ew", pady=(0, 10))
+        preproc_frame.grid(row=3, column=0, columnspan=3, sticky="ew", pady=(0, 10))
 
         self.preproc_var = tk.BooleanVar(value=True)
         self.preproc_check = ttk.Checkbutton(
@@ -855,7 +687,7 @@ class PPOCRApp:
 
         # ===== 操作按钮 =====
         btn_frame = ttk.Frame(main_frame)
-        btn_frame.grid(row=5, column=0, columnspan=3, pady=(5, 10))
+        btn_frame.grid(row=4, column=0, columnspan=3, pady=(5, 10))
 
         self.start_btn = ttk.Button(
             btn_frame, text="▶  开始处理",
@@ -872,13 +704,13 @@ class PPOCRApp:
         )
         self.stop_btn.pack(side=tk.LEFT, padx=5)
 
-        # 进度条
-        self.progress = ttk.Progressbar(btn_frame, mode="indeterminate", length=200)
+        # 进度条（按图片处理比例显示）
+        self.progress = ttk.Progressbar(btn_frame, mode="determinate", length=200)
         self.progress.pack(side=tk.LEFT, padx=20)
 
         # ===== 日志输出区 =====
         log_frame = ttk.LabelFrame(main_frame, text="运行日志", padding="5")
-        log_frame.grid(row=6, column=0, columnspan=3, sticky="nsew", pady=(5, 0))
+        log_frame.grid(row=5, column=0, columnspan=3, sticky="nsew", pady=(5, 0))
 
         self.log_text = scrolledtext.ScrolledText(
             log_frame,
@@ -893,7 +725,7 @@ class PPOCRApp:
         self.log_text.pack(fill=tk.BOTH, expand=True)
 
         # 配置行权重 (日志区可扩展)
-        main_frame.rowconfigure(6, weight=1)
+        main_frame.rowconfigure(5, weight=1)
         main_frame.columnconfigure(1, weight=1)
 
         # 初始日志
@@ -914,26 +746,6 @@ class PPOCRApp:
         if path:
             var.set(path)
 
-    def _on_mode_change(self):
-        """模式切换时更新 UI 状态"""
-        mode = self.mode_var.get()
-        if mode == "direct":
-            # 直接模式：隐藏 JSON 和裁剪路径
-            self.json_label.grid_remove()
-            self.json_entry.grid_remove()
-            self.json_btn.grid_remove()
-            self.crop_label.grid_remove()
-            self.crop_entry.grid_remove()
-            self.crop_btn.grid_remove()
-        else:
-            # JSON 模式：显示全部
-            self.json_label.grid()
-            self.json_entry.grid()
-            self.json_btn.grid()
-            self.crop_label.grid()
-            self.crop_entry.grid()
-            self.crop_btn.grid()
-
     def _log(self, text: str):
         """向日志区追加文本"""
         self.log_text.insert(tk.END, text)
@@ -946,18 +758,11 @@ class PPOCRApp:
             return
 
         # 验证路径
-        mode = self.mode_var.get()
         img_folder = self.img_var.get().strip()
 
         if not img_folder:
             messagebox.showwarning("路径错误", "请选择图片文件夹。")
             return
-
-        if mode == "json":
-            json_folder = self.json_var.get().strip()
-            if not json_folder:
-                messagebox.showwarning("路径错误", "请选择 JSON 标注文件夹。")
-                return
 
         # 确认
         if not messagebox.askokcancel("确认", "是否开始处理？\n\n此操作可能需要数分钟，取决于图片大小和数量。"):
@@ -967,7 +772,8 @@ class PPOCRApp:
         self.processing = True
         self.start_btn.config(state=tk.DISABLED)
         self.stop_btn.config(state=tk.NORMAL)
-        self.progress.start(10)
+        self.progress["value"] = 0
+        self.progress["maximum"] = 100
         self.log_text.delete(1.0, tk.END)
         self._log("=" * 55 + "\n")
         self._log("开始处理...\n")
@@ -983,13 +789,18 @@ class PPOCRApp:
         self._log("\n⚠ 用户停止了处理。\n")
         self._reset_ui()
 
+    def _set_progress(self, current: int, total: int):
+        """从后台线程安全更新进度条"""
+        def _update():
+            self.progress["maximum"] = total
+            self.progress["value"] = current
+        self.root.after(0, _update)
+
     def _run_processing(self):
         """后台处理线程"""
         try:
-            mode = self.mode_var.get()
             img_folder = self.img_var.get().strip()
             results_dir = self.results_var.get().strip()
-            cropped_dir = self.crop_var.get().strip()
 
             # 读取设置
             speed = self.speed_var.get()
@@ -1001,20 +812,15 @@ class PPOCRApp:
 
             # 确保目录存在
             os.makedirs(results_dir, exist_ok=True)
-            if mode == "json":
-                os.makedirs(cropped_dir, exist_ok=True)
 
-            if mode == "direct":
-                run_direct_mode(img_folder, results_dir,
-                                preprocessing_enabled=preprocessing_enabled,
-                                log_func=self._log,
-                                speed=speed)
-            else:
-                json_folder = self.json_var.get().strip()
-                run_json_mode(json_folder, img_folder, results_dir, cropped_dir,
-                              preprocessing_enabled=preprocessing_enabled,
-                              log_func=self._log,
-                              speed=speed)
+            def progress_callback(current, total):
+                self._set_progress(current, total)
+
+            run_direct_mode(img_folder, results_dir,
+                            preprocessing_enabled=preprocessing_enabled,
+                            log_func=self._log,
+                            speed=speed,
+                            progress_callback=progress_callback)
 
             if self.processing:
                 self._log("\n" + "=" * 55 + "\n")
@@ -1038,7 +844,7 @@ class PPOCRApp:
         self.processing = False
         self.root.after(0, lambda: self.start_btn.config(state=tk.NORMAL))
         self.root.after(0, lambda: self.stop_btn.config(state=tk.DISABLED))
-        self.root.after(0, lambda: self.progress.stop())
+        self.root.after(0, lambda: self.progress.config(value=0))
 
     def _on_close(self):
         """关闭窗口"""

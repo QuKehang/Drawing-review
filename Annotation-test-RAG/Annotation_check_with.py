@@ -1,13 +1,3 @@
-#!/usr/bin/env python3
-"""
-附注判别系统 —— DeepSeek-R1 + RAG（裁剪图版）
-直接对已裁剪好的 annotation 图块文件夹做 OCR + RAG + DeepSeek 判别。
-不需要 JSON 坐标文件，不需要原始大图 — 图片已经是裁剪好的 annotation 区域。
-
-运行方式:
-    python Judge_crop.py
-"""
-
 import sys
 import os
 import re
