@@ -1,29 +1,9 @@
-"""
-
-  - 全图识别模式：直接对图纸进行表格检测和结构化识别
-  - 进度条按图片处理比例显示
-  - 文件夹浏览选择
-  - 后台线程处理，界面不卡顿
-  - 实时日志输出到 GUI 文本框
-  - 结果保存为 Excel (.xlsx) + HTML 格式
-  - 裁剪保持原始分辨率（不缩放）
-
-"""
-
 import os
 import sys
-
-# ---- 在导入 paddleocr 前禁用 ONEDNN/MKLDNN，避免 PIR 属性转换错误 ----
-# PaddleX 默认启用 MKLDNN (ONEDNN) 但 PaddlePaddle 2.6.2 的 ONEDNN 后端
-# 不支持 PIR ArrayAttribute<DoubleAttribute> 转换，导致推理崩溃
 os.environ.setdefault("PADDLE_PDX_ENABLE_MKLDNN_BYDEFAULT", "0")
 os.environ["FLAGS_use_mkldnn"] = "0"
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
-# ---- Windows DLL 修复：必须在 paddleocr 之前显式导入 torch ----
-# paddleocr → albumentations → torch 的长导入链中，Python GC 会回收
-# os.add_dll_directory 返回的 DLL cookie 对象，导致 shm.dll 加载失败 (OSError 127)
-# 显式 import torch 确保 _load_dll_libraries() 在干净的 GC 上下文中运行
 if sys.platform == "win32":
     _torch_lib = os.path.join(sys.prefix, "Lib", "site-packages", "torch", "lib")
     if os.path.isdir(_torch_lib):
