@@ -54,12 +54,40 @@ drawing-review/
 pip install uv
 ```
 
-### 基础环境（OCR / BERT / YOLO / 表格识别）
+### 基础环境（CPU 版本，所有机器通用）
+
+默认安装 CPU 版 PaddlePaddle，适用于所有机器：
 
 ```bash
 cd drawing-review
 uv sync
 ```
+
+### GPU 加速环境（需要 NVIDIA 显卡）
+
+如果你有 NVIDIA 显卡（推荐 4 GB+ VRAM），可使用 GPU 版本获得 2–5 倍推理加速：
+
+```bash
+# 1. 用 GPU 配置文件覆盖默认配置
+copy pyproject-gpu.toml pyproject.toml   # Windows
+# cp pyproject-gpu.toml pyproject.toml    # macOS / Linux
+
+# 2. 安装依赖（将自动安装 paddlepaddle-gpu）
+uv sync
+
+# 3. 安装 CUDA 运行库（cuDNN / cuBLAS / CUDA Runtime）
+uv pip install "nvidia-cuda-runtime-cu11>=11.8.0,<12.0.0"
+uv pip install "nvidia-cudnn-cu11>=8.9.0,<9.0.0"
+uv pip install "nvidia-cublas-cu11>=11.0.0,<12.0.0"
+
+# 4. 验证 GPU 是否可用
+uv run python -c "import paddle; print('GPU 数量:', paddle.device.cuda.device_count())"
+```
+
+> **切换回 CPU 版本**：`git checkout pyproject.toml && uv sync`
+
+> **PyPI 下载慢？** 可在 pip install 时使用清华镜像：
+> `uv pip install -i https://pypi.tuna.tsinghua.edu.cn/simple/ nvidia-cuda-runtime-cu11 ...`
 
 ### 完整环境（含 RAG 知识库 + DeepSeek 判别）
 
@@ -347,7 +375,8 @@ uv run python Completeness_check/Completeness_check.py
 | 磁盘空间 | 5 GB（含依赖与模型） | 10 GB |
 
 > **关于 GPU**：PaddleOCR (PP-OCRv4) 模型本身为轻量级设计，CPU 即可流畅运行，GPU 主要加速批量处理场景（约 2–5 倍）。少量图纸处理 CPU 完全足够。
-GPU 1'20'' CPU 
+>
+> **启用 GPU 加速**：如需 GPU 推理，请使用 `pyproject-gpu.toml` 覆盖默认配置并安装 NVIDIA 运行库，详见上方「GPU 加速环境」章节。 
 
 ### 完整配置（含 RAG + DeepSeek-R1:8b）
 
@@ -379,7 +408,8 @@ GPU 1'20'' CPU
 ## 注意事项
 
 1. **首次使用**：需先运行 `Design_Judge.py` 训练 BERT 模型，生成 `bert_model_trained/` 后才能使用设计说明判定功能。
-2. **OpenCV GUI**：`uv sync` 后 `opencv-python-headless` 可能被自动安装，运行 `uv run python scripts/fix_opencv.py` 即可修复。
-3. **模型路径**：YOLOv5 模型（`cstr.onnx`）和推理脚本位于 `Location/model/` 目录下。
-4. **逐条检验**：设计说明判定已优化分句逻辑，支持全角/半角标点混合、连续编号项自动拆分，确保每条附注独立判定。
-5. **Tesseract 路径**：完整性检查模块依赖 Tesseract OCR，需单独安装并将安装目录置于 `Completeness_check/` 下。
+2. **双硬件配置**：项目默认使用 CPU 版 PaddlePaddle（所有机器通用）。如需 GPU 加速，将 `pyproject-gpu.toml` 覆盖 `pyproject.toml` 后重新 `uv sync`，详见环境配置章节。`Table_recognition.py` 启动时会自动检测 GPU 可用性并切换推理设备。
+3. **OpenCV GUI**：`uv sync` 后 `opencv-python-headless` 可能被自动安装，运行 `uv run python scripts/fix_opencv.py` 即可修复。
+4. **模型路径**：YOLOv5 模型（`cstr.onnx`）和推理脚本位于 `Location/model/` 目录下。
+5. **逐条检验**：设计说明判定已优化分句逻辑，支持全角/半角标点混合、连续编号项自动拆分，确保每条附注独立判定。
+6. **Tesseract 路径**：完整性检查模块依赖 Tesseract OCR，需单独安装并将安装目录置于 `Completeness_check/` 下。

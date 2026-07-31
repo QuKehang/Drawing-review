@@ -8,6 +8,15 @@ if sys.platform == "win32":
     _torch_lib = os.path.join(sys.prefix, "Lib", "site-packages", "torch", "lib")
     if os.path.isdir(_torch_lib):
         os.add_dll_directory(_torch_lib)
+
+    # ── NVIDIA GPU 库路径：cuDNN / cuBLAS / CUDA Runtime ──
+    # paddlepaddle-gpu 需要这些 DLL，但其动态加载器不搜索 nvidia 包目录
+    _site_pkgs = os.path.join(sys.prefix, "Lib", "site-packages", "nvidia")
+    for _nvidia_dir in ("cudnn", "cublas", "cuda_runtime", "cuda_nvrtc"):
+        _bin_dir = os.path.join(_site_pkgs, _nvidia_dir, "bin")
+        if os.path.isdir(_bin_dir):
+            os.add_dll_directory(_bin_dir)
+
     import torch  # noqa: F401 — 必须在 paddleocr 之前导入
 
 import cv2
@@ -59,6 +68,22 @@ except ImportError as e:
         f"  3. 当前使用 env01 环境 (PaddleOCR 2.x)\n\n"
         f"  4. 安装必要依赖: pip install premailer opencv-python"
     )
+
+# =====================================================================
+# GPU 检测 — 自动识别是否有可用 GPU
+# =====================================================================
+GPU_AVAILABLE = False
+GPU_NAME = ""
+
+if PADDLE_AVAILABLE:
+    try:
+        import paddle
+        _gpu_count = paddle.device.cuda.device_count()
+        if _gpu_count > 0:
+            GPU_AVAILABLE = True
+            GPU_NAME = paddle.device.cuda.get_device_name(0)
+    except Exception:
+        pass  # paddle 不可用或 GPU 检测失败，保持 CPU 模式
 
 # =====================================================================
 # 路径配置
@@ -473,10 +498,12 @@ def init_table_engine(log_func=print, speed="accurate"):
         ocr=True,
         formula=False,
         show_log=False,
+        use_gpu=GPU_AVAILABLE,
         # ---- 速度参数 ----
         **speed_params,
     )
-    log_func(f"引擎初始化完成（PP-Structure v1 表格 + PP-OCRv4 中文 OCR, speed={speed}）。")
+    _gpu_status = f"GPU: {GPU_NAME}" if GPU_AVAILABLE else "CPU (无可用 GPU)"
+    log_func(f"引擎初始化完成（PP-Structure v1 表格 + PP-OCRv4 中文 OCR, speed={speed}, {_gpu_status}）。")
     return engine
 
 
@@ -635,11 +662,23 @@ class PPOCRApp:
             text="图纸表格识别模块",
             font=("Microsoft YaHei", 16, "bold")
         )
-        title_label.grid(row=0, column=0, columnspan=3, pady=(0, 15))
+        title_label.grid(row=0, column=0, columnspan=3, pady=(0, 5))
+
+        # ---- 硬件状态 ----
+        if GPU_AVAILABLE:
+            _hw_text = f"● GPU: {GPU_NAME}"
+            _hw_color = "#107c10"  # 绿色
+        else:
+            _hw_text = "● CPU 模式 (无可用 GPU)"
+            _hw_color = "#888888"  # 灰色
+        hw_label = ttk.Label(main_frame, text=_hw_text, font=("Microsoft YaHei", 9))
+        hw_label.grid(row=1, column=0, columnspan=3, pady=(0, 10))
+        # 用 tk 原生方式设置颜色（ttk.Label 不支持 foreground）
+        hw_label.configure(foreground=_hw_color)
 
         # ===== 路径配置 =====
         path_frame = ttk.LabelFrame(main_frame, text="路径设置", padding="10")
-        path_frame.grid(row=1, column=0, columnspan=3, sticky="ew", pady=(0, 10))
+        path_frame.grid(row=2, column=0, columnspan=3, sticky="ew", pady=(0, 10))
 
         # 图片文件夹
         ttk.Label(path_frame, text="图片文件夹:").grid(row=0, column=0, sticky="w", pady=5)
@@ -657,7 +696,7 @@ class PPOCRApp:
 
         # ===== 速度预设 =====
         speed_frame = ttk.LabelFrame(main_frame, text="速度预设", padding="10")
-        speed_frame.grid(row=2, column=0, columnspan=3, sticky="ew", pady=(0, 10))
+        speed_frame.grid(row=3, column=0, columnspan=3, sticky="ew", pady=(0, 10))
 
         self.speed_var = tk.StringVar(value="accurate")
         speed_desc = {
@@ -675,7 +714,7 @@ class PPOCRApp:
 
         # ===== 预处理控制 =====
         preproc_frame = ttk.LabelFrame(main_frame, text="图像预处理", padding="10")
-        preproc_frame.grid(row=3, column=0, columnspan=3, sticky="ew", pady=(0, 10))
+        preproc_frame.grid(row=4, column=0, columnspan=3, sticky="ew", pady=(0, 10))
 
         self.preproc_var = tk.BooleanVar(value=True)
         self.preproc_check = ttk.Checkbutton(
@@ -687,7 +726,7 @@ class PPOCRApp:
 
         # ===== 操作按钮 =====
         btn_frame = ttk.Frame(main_frame)
-        btn_frame.grid(row=4, column=0, columnspan=3, pady=(5, 10))
+        btn_frame.grid(row=5, column=0, columnspan=3, pady=(5, 10))
 
         self.start_btn = ttk.Button(
             btn_frame, text="▶  开始处理",
@@ -710,7 +749,7 @@ class PPOCRApp:
 
         # ===== 日志输出区 =====
         log_frame = ttk.LabelFrame(main_frame, text="运行日志", padding="5")
-        log_frame.grid(row=5, column=0, columnspan=3, sticky="nsew", pady=(5, 0))
+        log_frame.grid(row=6, column=0, columnspan=3, sticky="nsew", pady=(5, 0))
 
         self.log_text = scrolledtext.ScrolledText(
             log_frame,
@@ -725,12 +764,13 @@ class PPOCRApp:
         self.log_text.pack(fill=tk.BOTH, expand=True)
 
         # 配置行权重 (日志区可扩展)
-        main_frame.rowconfigure(5, weight=1)
+        main_frame.rowconfigure(6, weight=1)
         main_frame.columnconfigure(1, weight=1)
 
         # 初始日志
         if PADDLE_AVAILABLE:
-            self._log("PP-OCR 表格识别工具已就绪 (PaddleOCR 2.10.0 + PP-OCRv4 中文 OCR)。\n")
+            _gpu_info = f"GPU: {GPU_NAME}" if GPU_AVAILABLE else "CPU 模式 (无可用 GPU)"
+            self._log(f"PP-OCR 表格识别工具已就绪 (PaddleOCR 2.10.0 + PP-OCRv4 中文 OCR, {_gpu_info})。\n")
             self._log("使用 PP-Structure v1 表格模型 (PaddlePaddle 2.x 兼容)。\n")
             self._log("默认使用「准确」模式，可在「速度预设」中切换更快档位。\n")
             self._log("请选择识别模式并确认路径，然后点击 [开始处理] 按钮。\n")

@@ -1,3 +1,15 @@
+# ╔══════════════════════════════════════════════════════════════════╗
+# ║  GPU 加速版本 — 需要 NVIDIA 显卡 + CUDA 11.8                     ║
+# ║                                                                  ║
+# ║  使用方法：                                                       ║
+# ║    1. 将此文件覆盖 pyproject.toml                                  ║
+# ║    2. uv sync                                                     ║
+# ║    3. 安装 NVIDIA 运行库（见 README.md）                            ║
+# ║                                                                  ║
+# ║  切换回 CPU 版本：                                                 ║
+# ║    git checkout pyproject.toml && uv sync                         ║
+# ╚══════════════════════════════════════════════════════════════════╝
+
 [project]
 name = "drawing-review"
 version = "0.1.0"
@@ -6,7 +18,7 @@ requires-python = ">=3.10,<3.13"
 dependencies = [
     # ── OCR ──────────────────────────────────
     "paddleocr>=2.9.0,<3.0.0",
-    "paddlepaddle>=2.6.0,<3.0.0",
+    "paddlepaddle-gpu>=2.6.0,<3.0.0",
     "pytesseract>=0.3.0",
     # ── Deep Learning ────────────────────────
     "torch>=2.0.0",
@@ -47,7 +59,11 @@ rag = [
 # 等 GUI 函数不可用。uv sync 后运行：
 #   uv run python scripts/fix_opencv.py
 #
-# ── GPU 加速 ───────────────────────────────
-# 如需 GPU 加速（NVIDIA 显卡），请使用 pyproject-gpu.toml 覆盖本文件，
-# 详见 README.md 环境配置章节。
+# ── CUDA 运行库 ──────────────────────────────
+# paddlepaddle-gpu 需要以下三个包（uv sync 后手动安装）：
+#   uv pip install "nvidia-cuda-runtime-cu11>=11.8.0,<12.0.0"
+#   uv pip install "nvidia-cudnn-cu11>=8.9.0,<9.0.0"
+#   uv pip install "nvidia-cublas-cu11>=11.0.0,<12.0.0"
+#  如果 PyPI 下载慢，可用清华镜像：
+#   uv pip install -i https://pypi.tuna.tsinghua.edu.cn/simple/ nvidia-cuda-runtime-cu11 ...
 # ────────────────────────────────────────────
