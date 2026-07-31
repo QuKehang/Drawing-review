@@ -347,7 +347,6 @@ uv run python Completeness_check/Completeness_check.py
 | 磁盘空间 | 5 GB（含依赖与模型） | 10 GB |
 
 > **关于 GPU**：PaddleOCR (PP-OCRv4) 模型本身为轻量级设计，CPU 即可流畅运行，GPU 主要加速批量处理场景（约 2–5 倍）。少量图纸处理 CPU 完全足够。
-GPU 1'20'' CPU 
 
 ### 完整配置（含 RAG + DeepSeek-R1:8b）
 
