@@ -120,18 +120,9 @@ uv run python Location/Drawing_location.py
 uv run python Completeness_check/Completeness_check.py
 ```
 
-## 设计说明判定系统 —— DeepSeek-R1 + RAG
+## 基于LLM的设计说明判定系统—— DeepSeek-R1 + RAG
 
-基于 **Ollama 本地部署的 DeepSeek-R1:8b** 模型，结合 **RAG（检索增强生成）** 知识库，
-对工程图纸中的附注（annotation）内容进行规范性判别，并**给出具体的判别依据**。
-
-### 功能特点
-
-- 🔍 **RAG 知识库**：支持用户自行添加 **txt / pdf / docx** 格式的技术规范文档
-- 🤖 **本地推理**：通过 Ollama 调用 DeepSeek-R1:8b，数据不出本机
-- 📝 **判据透明**：每条判别结果包含：判断结果 + 判断依据 + 参考规范条文 + 检索来源
-- 🖼️ **OCR 集成**：自动对图纸附注区域进行 OCR 文字识别后逐条判别
-- 🎛️ **PyQt5 桌面界面**：完整的知识库管理 + 文件选择 + 结果筛选 + JSON 导出
+基于 **Ollama 本地部署的 DeepSeek-R1:8b** 模型，结合 **RAG（检索增强生成）** 知识库
 
 ### 安装 Ollama 并拉取模型
 
