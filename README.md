@@ -222,7 +222,7 @@ uv run python Annotation-test/Annotation_check_without.py
 
 ---
 
-### ④ 基于 LLM 的设计说明判定 — DeepSeek-R1 + RAG（推荐）
+### ④ 设计说明判定（LLM） — DeepSeek-R1 + RAG（推荐）
 
 > **推荐方案**：算力充足时（16 GB+ 内存，NVIDIA GPU 8 GB+ VRAM），强烈建议使用本方案代替上方 BERT 方案。DeepSeek-R1 不仅能判断合规性，还能定位到具体规范条文并给出推理依据，结果可解释性远超 BERT 的二分类输出。
 
