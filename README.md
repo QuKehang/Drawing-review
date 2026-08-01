@@ -195,11 +195,13 @@ uv run python Code_of_Bert_Trainning/Design_Judge.py
 
 ---
 
-### ③ 设计说明判定（BERT） — OCR + BERT 文本分类
+### ③ 设计说明判定 — 附注合规性判别
 
-> **附注判定方案说明**：BERT 与 DeepSeek-R1（见下方 ④）为**二选一**的可选方案，用户可根据实际算力条件灵活选择。
-> BERT 方案轻量、离线、无需 GPU，适合常规场景；
-> DeepSeek-R1 方案能给出详细判断依据和规范条文引用，判别质量更高，但需要 Ollama 本地部署且对硬件要求较高（推荐 16 GB+ 内存、8 GB+ VRAM）。
+> **方案选择**：提供 BERT 与 DeepSeek-R1 两种方案，**二选一**即可。BERT 轻量、离线、无需 GPU，适合常规场景；DeepSeek-R1 能给出详细判断依据和规范条文引用，判别质量更高，但需 Ollama 本地部署（推荐 16 GB+ 内存、8 GB+ VRAM）。
+
+---
+
+#### 方案 A：BERT 文本分类（轻量离线）
 
 **功能**：直接对已裁剪好的 annotation 图块文件夹进行 OCR 识别，使用本地 BERT 模型逐条判定每条附注是否符合设计说明规范。
 
@@ -220,17 +222,17 @@ uv run python Annotation-test/Annotation_check_without.py
    - 使用 BERT 模型逐条判定合规性
 4. **查看结果** → 每条附注显示「符合设计说明」或「不符合设计说明」的分类结果
 
-**前置条件**：存在 `bert_model_trained/` 模型文件。
+**前置条件**：已生成 `bert_model_trained/` 模型文件（见上方 ②）。
 
 ---
 
-### ④ 设计说明判定（LLM） — DeepSeek-R1 + RAG（推荐）
+#### 方案 B：DeepSeek-R1 + RAG（推荐，算力充足时使用）
 
-> **推荐方案**：算力充足时（16 GB+ 内存，NVIDIA GPU 8 GB+ VRAM），强烈建议使用本方案代替上方 BERT 方案。DeepSeek-R1 不仅能判断合规性，还能定位到具体规范条文并给出推理依据，结果可解释性远超 BERT 的二分类输出。
+> **推荐**：算力充足时（16 GB+ 内存，NVIDIA GPU 8 GB+ VRAM），强烈建议使用本方案。DeepSeek-R1 不仅能判断合规性，还能定位到具体规范条文并给出推理依据，结果可解释性远超 BERT 的二分类输出。
 
-基于 **Ollama 本地部署的 DeepSeek-R1:8b** 模型，结合 **RAG（检索增强生成）** 知识库，对图纸附注进行智能合规性判别。相比纯 BERT 方案，能够给出详细的判断依据和引用的规范条文。
+基于 **Ollama 本地部署的 DeepSeek-R1:8b** 模型，结合 **RAG（检索增强生成）** 知识库，对图纸附注进行智能合规性判别。
 
-#### 安装 Ollama 并拉取模型
+**安装 Ollama 并拉取模型**：
 
 ```bash
 # 下载安装 Ollama: https://ollama.com
@@ -242,37 +244,29 @@ ollama pull deepseek-r1:8b
 ollama pull nomic-embed-text
 ```
 
-#### 启动方式
+**启动方式**：
 
 ```bash
 uv run python Annotation-test-RAG/Annotation_check_with.py
 ```
 
-#### 操作步骤
+**操作步骤**：
 
 1. **配置模型** → 确认 LLM 模型 (`deepseek-r1:8b`) 和 Embedding 模型 (`nomic-embed-text`) 已安装
-
 2. **初始化知识库** → 将技术规范文档（txt/pdf/docx）放入 `user_docs/` 目录，点击「初始化知识库」
-
 3. **添加文档** → 可随时点击「添加文档」追加新的规范文件到知识库
-
 4. **选择文件夹** → 分别选择：
    - 裁剪图块文件夹（annotation 区域图片）
    - 输出结果保存文件夹
-
 5. **运行判别** → 点击「▶ 运行判别」，系统会：
    - 对每张裁剪图片进行预处理和 OCR 识别
    - 智能分句拆分每条附注
    - 在知识库中检索相关技术规范
    - 由 DeepSeek-R1 综合判断并给出依据
-
 6. **查看结果** → 可按「符合规范 / 不符合规范 / 无明确规定」分类筛选查看
-
 7. **导出结果** → 点击「导出结果 (JSON)」保存完整判别记录
 
-#### 判别结果格式
-
-每条判别输出包含：
+**判别结果格式**：
 
 ```
 ─────────────────────────────────────────────────
@@ -285,8 +279,7 @@ uv run python Annotation-test-RAG/Annotation_check_with.py
 ```
 
 ---
-
-### ⑤ PP-OCR 表格识别 — 图纸表格结构化提取
+### ④ PP-OCR 表格识别 — 图纸表格结构化提取
 
 **功能**：基于 PaddleOCR (PP-OCRv4 + PP-Structure) 对图纸中的表格进行结构化识别，自动检测并提取表格区域。
 
@@ -317,7 +310,7 @@ Output/
 
 ---
 
-### ⑥ 固定信息提取与对比 — 完整性检查
+### ⑤ 固定信息提取与对比 — 完整性检查
 
 **功能**：通过 OpenCV 交互式区域选取 → Tesseract OCR 识别 → 与 Excel 参考表自动比对，验证图纸的图名图号等信息完整性。
 
