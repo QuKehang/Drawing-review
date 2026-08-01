@@ -1,9 +1,3 @@
-"""
-直接对已裁剪好的 annotation 图块文件夹做 OCR + BERT 判错。
-不需要 JSON 坐标文件，不需要原始大图 — 图片已经是裁剪好的 annotation 区域。
-
-"""
-
 import torch  # 必须在 PaddleOCR 之前导入，否则 albumentations→torch 的 DLL 加载会失败
 import re
 import sys
