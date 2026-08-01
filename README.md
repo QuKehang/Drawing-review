@@ -220,7 +220,7 @@ uv run python Annotation-test/Annotation_check_without.py
    - 使用 BERT 模型逐条判定合规性
 4. **查看结果** → 每条附注显示「符合设计说明」或「不符合设计说明」的分类结果
 
-**前置条件**：有已生成的 `bert_model_trained/` 模型文件。
+**前置条件**：存在 `bert_model_trained/` 模型文件。
 
 ---
 
