@@ -2,48 +2,6 @@
 
 图纸审查系统，集成 OCR、BERT 文本分类、YOLOv5 目标检测、RAG 知识库判别等功能。
 
-## 项目结构
-
-```
-drawing-review/
-├── pyproject.toml                          # uv 项目配置
-├── launcher.py                             # 统一调度系统（一键启动）
-├── uv.lock                                 # 依赖锁定文件
-│
-├── Annotation-test/                        # ① 设计说明判定（BERT）
-│   └── Annotation_check_without.py         #    OCR + BERT 分类，直接处理裁剪图块
-│
-├── Annotation-test-RAG/                    # ② 设计说明判定（RAG + DeepSeek）
-│   ├── Annotation_check_with.py            #    OCR + RAG + DeepSeek-R1 判别
-│   └── RAG.py                              #    本地知识库系统（ChromaDB + Ollama）
-│
-├── Location/                               # ③ 目标检测 & 区域裁剪
-│   ├── Drawing_location.py                 #    按标签分类裁剪 + GUI
-│   └── model/                              #    YOLOv5 模型文件
-│       ├── cstr.onnx                       #    ONNX 权重
-│       └── yolov5_partition.py             #    YOLOv5 推理引擎
-│
-├── PP-OCR_table_reading/                   # ④ 表格识别
-│   └── Table_recognition.py                #    PP-OCRv4 表格结构化识别
-│
-├── Code_of_Bert_Trainning/                 # ⑤ BERT 模型训练
-│   ├── Design_Judge.py                     #    bert-base-chinese 微调二分类
-│   ├── design_spec.txt                     #    正例训练数据（符合规范）
-│   └── relation_no.txt                     #    负例训练数据（不符合规范）
-│
-├── bert_model_trained/                     # ⑥ BERT 训练产出（git-ignored）
-│   ├── config.json
-│   ├── model.safetensors
-│   ├── tokenizer.json
-│   └── tokenizer_config.json
-│
-├── Completeness_check/                     # ⑦ 完整性检查
-│   └── Completeness_check.py               #    区域选取 + OCR + Excel 信息对比
-│
-└── scripts/
-    └── fix_opencv.py                       #    OpenCV GUI 修复脚本
-```
-
 ## 环境配置
 
 本项目使用 [uv](https://docs.astral.sh/uv/) 管理依赖。
@@ -51,8 +9,11 @@ drawing-review/
 ### 安装 uv
 
 ```bash
-pip install uv
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
+
+### 下载代码
+
 
 ### 基础环境（CPU 版本，所有机器通用）
 
@@ -63,12 +24,14 @@ cd drawing-review
 uv sync
 ```
 
+> `pyproject.toml` 默认为 CPU 配置。项目提供 `pyproject-cpu.toml` 和 `pyproject-gpu.toml` 两套硬件模板，按需覆盖即可切换。
+
 ### GPU 加速环境（需要 NVIDIA 显卡）
 
 如果你有 NVIDIA 显卡（推荐 4 GB+ VRAM），可使用 GPU 版本获得 2–5 倍推理加速：
 
 ```bash
-# 1. 用 GPU 配置文件覆盖默认配置
+# 1. 用 GPU 配置模板覆盖默认配置
 copy pyproject-gpu.toml pyproject.toml   # Windows
 # cp pyproject-gpu.toml pyproject.toml    # macOS / Linux
 
@@ -84,7 +47,12 @@ uv pip install "nvidia-cublas-cu11>=11.0.0,<12.0.0"
 uv run python -c "import paddle; print('GPU 数量:', paddle.device.cuda.device_count())"
 ```
 
-> **切换回 CPU 版本**：`git checkout pyproject.toml && uv sync`
+> **切换回 CPU 版本**：将 `pyproject-cpu.toml` 覆盖 `pyproject.toml` 后 `uv sync`
+> ```bash
+> copy pyproject-cpu.toml pyproject.toml   # Windows
+> # cp pyproject-cpu.toml pyproject.toml    # macOS / Linux
+> uv sync
+> ```
 
 > **PyPI 下载慢？** 可在 pip install 时使用清华镜像：
 > `uv pip install -i https://pypi.tuna.tsinghua.edu.cn/simple/ nvidia-cuda-runtime-cu11 ...`
@@ -117,6 +85,7 @@ Tesseract OCR下载也可通过阿里云盘下载，位于云盘的drawing-revie
 
 ### YOLO预训练模型下载
 预训练模型文件格式为onnx，保存在阿里云盘的drawing-review\Model Profile文件夹，链接为https://www.alipan.com/s/NshsKZPU32Z
+下载后应保存至Location\model文件夹下
 
 ---
 
@@ -124,13 +93,13 @@ Tesseract OCR下载也可通过阿里云盘下载，位于云盘的drawing-revie
 
 ### 统一调度系统（推荐）
 
-项目提供了 PyQt5 图形化统一调度平台，可一键启动各子工具：
+本项目所有功能可统一调度，本项目提供了 PyQt5 图形化统一调度平台，可一键启动各子工具（目标检测与定位、设计说明附注检验、图纸表格识别以及图纸完备性检验）：
 
 ```bash
 uv run python launcher.py
 ```
 
-在调度界面中选择 Python 环境后，点击对应工具卡片的「▶ 启动」按钮即可运行。各工具以独立进程运行，关闭调度窗口不影响已启动的工具。
+在调度界面中选择 Python 环境后，点击对应工具卡片的「▶ 启动」按钮即可运行。各工具以独立进程运行，关闭调度窗口不影响已启动的工具。若要单独运行其中某一功能模块，具体操作见下面说明
 
 ---
 
@@ -164,69 +133,13 @@ output_root/
 **依赖**：YOLOv5 ONNX 模型（`Location/model/cstr.onnx`）+ PyQt5 GUI
 
 ---
-
-### ② BERT 模型训练 — 设计说明合规性判别模型
-
-**功能**：基于 `bert-base-chinese` 微调二分类模型（符合规范 / 不符合规范），为设计说明判定工具提供推理模型。
-
-> ⚠️ **本项目基于部分已有规范，已训练得到对应的微调模型，若规范有所更改，建议重新训练BERT模型**，训练完成后会在项目根目录生成 `bert_model_trained/` 文件夹。
-
-**启动方式**：
-
-```bash
-uv run python Code_of_Bert_Trainning/Design_Judge.py
-```
-
-**操作步骤**：
-
-1. **准备训练数据** → 确保 `Code_of_Bert_Trainning/` 目录下存在以下文件：
-   - `design_spec.txt` — 正例训练数据（符合规范的设计说明条文）
-   - `relation_no.txt` — 负例训练数据（不符合规范的文本示例）
-2. **运行训练** → 执行脚本，将自动完成数据加载、模型微调、保存
-3. **验证产出** → 确认 `bert_model_trained/` 目录下生成了 `config.json`、`model.safetensors`、`tokenizer.json` 等文件
-
-**训练参数**（可在脚本中修改）：
-| 参数 | 默认值 | 说明 |
-|------|--------|------|
-| `MAX_LENGTH` | 128 | 最大序列长度 |
-| `BATCH_SIZE` | 32 | 训练批次大小 |
-| `EPOCHS` | 3 | 训练轮数 |
-| `LEARNING_RATE` | 2e-5 | 学习率 |
-
----
-
-### ③ 设计说明判定 — 附注合规性判别
+### ② 设计说明判定 — 附注合规性判别
 
 > **方案选择**：提供 BERT 与 DeepSeek-R1 两种方案，**二选一**即可。BERT 轻量、离线、无需 GPU，适合常规场景；DeepSeek-R1 能给出详细判断依据和规范条文引用，判别质量更高，但需 Ollama 本地部署（推荐 16 GB+ 内存、8 GB+ VRAM）。
 
 ---
 
-#### 方案 A：BERT 文本分类（轻量离线）
-
-**功能**：直接对已裁剪好的 annotation 图块文件夹进行 OCR 识别，使用本地 BERT 模型逐条判定每条附注是否符合设计说明规范。
-
-**启动方式**：
-
-```bash
-uv run python Annotation-test/Annotation_check_without.py
-```
-
-**操作步骤**：
-
-1. **准备裁剪图块** → 确保已有裁剪好的 annotation 区域图片（可由「YOLO 标注裁剪」工具生成）
-2. **选择输入目录** → 点击「选择文件夹」，选择包含 annotation 裁剪图块的文件夹
-3. **运行判定** → 点击「运行判别」，系统将：
-   - 对每张裁剪图片进行预处理（对比度增强、中值滤波、二值化）
-   - 使用 PaddleOCR 识别文字
-   - 智能分句（支持全角/半角标点混合、连续编号项自动拆分）
-   - 使用 BERT 模型逐条判定合规性
-4. **查看结果** → 每条附注显示「符合设计说明」或「不符合设计说明」的分类结果
-
-**前置条件**：已生成 `bert_model_trained/` 模型文件（见上方 ②）。
-
----
-
-#### 方案 B：DeepSeek-R1 + RAG（推荐，算力充足时使用）
+#### 方案 A：DeepSeek-R1 + RAG（推荐，算力充足时使用）
 
 > **推荐**：算力充足时（16 GB+ 内存，NVIDIA GPU 8 GB+ VRAM），强烈建议使用本方案。DeepSeek-R1 不仅能判断合规性，还能定位到具体规范条文并给出推理依据，结果可解释性远超 BERT 的二分类输出。
 
@@ -279,7 +192,54 @@ uv run python Annotation-test-RAG/Annotation_check_with.py
 ```
 
 ---
-### ④ PP-OCR 表格识别 — 图纸表格结构化提取
+
+#### 方案 B：BERT 文本分类（轻量离线）
+
+**功能**：直接对已裁剪好的 annotation 图块文件夹进行 OCR 识别，使用本地 BERT 模型逐条判定每条附注是否符合设计说明规范。
+
+**启动方式**：
+
+```bash
+uv run python Annotation-test/Annotation_check_without.py
+```
+
+**操作步骤**：
+
+1. **准备裁剪图块** → 确保已有裁剪好的 annotation 区域图片（可由「YOLO 标注裁剪」工具生成）
+2. **选择输入目录** → 点击「选择文件夹」，选择包含 annotation 裁剪图块的文件夹
+3. **运行判定** → 点击「运行判别」，系统将：
+   - 对每张裁剪图片进行预处理（对比度增强、中值滤波、二值化）
+   - 使用 PaddleOCR 识别文字
+   - 智能分句（支持全角/半角标点混合、连续编号项自动拆分）
+   - 使用 BERT 模型逐条判定合规性
+4. **查看结果** → 每条附注显示「符合设计说明」或「不符合设计说明」的分类结果
+
+**前置条件：BERT 模型训练**
+
+使用本方案前需先训练 BERT 微调模型：
+
+```bash
+uv run python Code_of_Bert_Trainning/Design_Judge.py
+```
+
+> ⚠️ 本项目基于已有规范训练得到微调模型，若规范有所更改，建议重新训练。训练完成后在项目根目录生成 `bert_model_trained/` 文件夹。
+
+**训练数据**（位于 `Code_of_Bert_Trainning/`）：
+- `design_spec.txt` — 正例（符合规范的设计说明条文）
+- `relation_no.txt` — 负例（不符合规范的文本示例）
+
+**训练参数**（可在 `Design_Judge.py` 中修改）：
+
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `MAX_LENGTH` | 128 | 最大序列长度 |
+| `BATCH_SIZE` | 32 | 训练批次大小 |
+| `EPOCHS` | 3 | 训练轮数 |
+| `LEARNING_RATE` | 2e-5 | 学习率 |
+
+---
+
+### ③ PP-OCR 表格识别 — 图纸表格结构化提取
 
 **功能**：基于 PaddleOCR (PP-OCRv4 + PP-Structure) 对图纸中的表格进行结构化识别，自动检测并提取表格区域。
 
@@ -310,7 +270,7 @@ Output/
 
 ---
 
-### ⑤ 固定信息提取与对比 — 完整性检查
+### ④ 固定信息提取与对比 — 完整性检查
 
 **功能**：通过 OpenCV 交互式区域选取 → Tesseract OCR 识别 → 与 Excel 参考表自动比对，验证图纸的图名图号等信息完整性。
 
@@ -331,7 +291,7 @@ uv run python Completeness_check/Completeness_check.py
    - 自动标记匹配/不匹配项
 5. **查看结果** → 在 GUI 的对比表格中查看匹配状态，定位不一致的条目
 
-**前置条件**：需安装 Tesseract OCR 并将安装目录置于Drawing_review文件夹下见上方 Tesseract OCR 安装说明）。
+**前置条件**：需安装 Tesseract OCR 并将安装目录置于 `Drawing_review/` 下（见上方 Tesseract OCR 安装说明）。
 
 ---
 
@@ -357,6 +317,48 @@ uv run python Completeness_check/Completeness_check.py
 - OpenCV >= 4.8, Pillow >= 10.0
 - PyQt5 >= 5.15
 - 可选：LangChain、ChromaDB、Ollama（RAG 判别）
+
+## 项目结构
+
+```
+drawing-review/
+├── pyproject.toml                          # uv 项目配置
+├── launcher.py                             # 统一调度系统（一键启动）
+├── uv.lock                                 # 依赖锁定文件
+│
+├── Annotation-test/                        # ① 设计说明判定（BERT）
+│   └── Annotation_check_without.py         #    OCR + BERT 分类，直接处理裁剪图块
+│
+├── Annotation-test-RAG/                    # ② 设计说明判定（RAG + DeepSeek）
+│   ├── Annotation_check_with.py            #    OCR + RAG + DeepSeek-R1 判别
+│   └── RAG.py                              #    本地知识库系统（ChromaDB + Ollama）
+│
+├── Location/                               # ③ 目标检测 & 区域裁剪
+│   ├── Drawing_location.py                 #    按标签分类裁剪 + GUI
+│   └── model/                              #    YOLOv5 模型文件
+│       ├── cstr.onnx                       #    ONNX 权重
+│       └── yolov5_partition.py             #    YOLOv5 推理引擎
+│
+├── PP-OCR_table_reading/                   # ④ 表格识别
+│   └── Table_recognition.py                #    PP-OCRv4 表格结构化识别
+│
+├── Code_of_Bert_Trainning/                 # ⑤ BERT 模型训练
+│   ├── Design_Judge.py                     #    bert-base-chinese 微调二分类
+│   ├── design_spec.txt                     #    正例训练数据（符合规范）
+│   └── relation_no.txt                     #    负例训练数据（不符合规范）
+│
+├── bert_model_trained/                     # ⑥ BERT 训练产出（git-ignored）
+│   ├── config.json
+│   ├── model.safetensors
+│   ├── tokenizer.json
+│   └── tokenizer_config.json
+│
+├── Completeness_check/                     # ⑦ 完整性检查
+│   └── Completeness_check.py               #    区域选取 + OCR + Excel 信息对比
+│
+└── scripts/
+    └── fix_opencv.py                       #    OpenCV GUI 修复脚本
+```
 
 ## 硬件要求
 

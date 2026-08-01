@@ -6,8 +6,7 @@
 # ║    2. uv sync                                                     ║
 # ║    3. 安装 NVIDIA 运行库（见 README.md）                            ║
 # ║                                                                  ║
-# ║  切换回 CPU 版本：                                                 ║
-# ║    git checkout pyproject.toml && uv sync                         ║
+# ║  切换至 CPU 版本：用 pyproject-cpu.toml 覆盖 pyproject.toml          ║
 # ╚══════════════════════════════════════════════════════════════════╝
 
 [project]

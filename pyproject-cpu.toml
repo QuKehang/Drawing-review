@@ -1,3 +1,13 @@
+# ╔══════════════════════════════════════════════════════════════════╗
+# ║  CPU 版本 — 所有机器通用（默认）                                    ║
+# ║                                                                  ║
+# ║  使用方法：                                                       ║
+# ║    1. 将此文件覆盖 pyproject.toml                                  ║
+# ║    2. uv sync                                                     ║
+# ║                                                                  ║
+# ║  切换至 GPU 版本：用 pyproject-gpu.toml 覆盖 pyproject.toml         ║
+# ╚══════════════════════════════════════════════════════════════════╝
+
 [project]
 name = "drawing-review"
 version = "0.1.0"
@@ -46,11 +56,4 @@ rag = [
 # 该包与 opencv-python 冲突，会导致 cv2.imshow / namedWindow
 # 等 GUI 函数不可用。uv sync 后运行：
 #   uv run python scripts/fix_opencv.py
-#
-# ── 硬件配置切换 ────────────────────────────
-# 提供 CPU / GPU 两套配置模板：
-#   pyproject-cpu.toml  → CPU 版本（所有机器通用）
-#   pyproject-gpu.toml  → GPU 版本（NVIDIA 显卡 + CUDA 11.8）
-# 将对应模板覆盖 pyproject.toml 后 uv sync 即可切换。
-# 详见 README.md 环境配置章节。
 # ────────────────────────────────────────────
