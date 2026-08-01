@@ -64,7 +64,7 @@ uv sync
 ```
 
 ### GPU 加速环境（需要 NVIDIA 显卡）
-（在 GPU 加速环境下，单张表格图像的识别耗时约可缩短至 CPU 模式的 1/3 ~ 1/2；处理批量图纸时，建议启用 GPU 加速以显著减少等待时间。）
+
 如果你有 NVIDIA 显卡（推荐 4 GB+ VRAM），可使用 GPU 版本获得 2–5 倍推理加速：
 
 ```bash
@@ -169,7 +169,7 @@ output_root/
 
 **功能**：基于 `bert-base-chinese` 微调二分类模型（符合规范 / 不符合规范），为设计说明判定工具提供推理模型。
 
-> ⚠️ **首次使用前必须运行此步骤**，训练完成后会在项目根目录生成 `bert_model_trained/` 文件夹。
+> ⚠️ **本项目基于已有规范训练，得到对应的微调模型，若规范有所更改，建议重新进行训练**，训练完成后会在项目根目录生成 `bert_model_trained/` 文件夹。
 
 **启动方式**：
 
@@ -197,6 +197,8 @@ uv run python Code_of_Bert_Trainning/Design_Judge.py
 
 ### ③ 设计说明判定（BERT） — OCR + BERT 文本分类
 
+> **附注判定方案说明**：BERT 与 DeepSeek-R1（见下方 ④）为**二选一**的可选方案，用户可根据实际算力条件灵活选择。BERT 方案轻量、离线、无需 GPU，适合常规场景；DeepSeek-R1 方案能给出详细判断依据和规范条文引用，判别质量更高，但需要 Ollama 本地部署且对硬件要求较高（推荐 16 GB+ 内存、8 GB+ VRAM）。
+
 **功能**：直接对已裁剪好的 annotation 图块文件夹进行 OCR 识别，使用本地 BERT 模型逐条判定每条附注是否符合设计说明规范。
 
 **启动方式**：
@@ -216,11 +218,13 @@ uv run python Annotation-test/Annotation_check_without.py
    - 使用 BERT 模型逐条判定合规性
 4. **查看结果** → 每条附注显示「符合设计说明」或「不符合设计说明」的分类结果
 
-**前置条件**：必须先运行「BERT 模型训练」生成 `bert_model_trained/` 模型文件。
+**前置条件**：有已生成的 `bert_model_trained/` 模型文件。
 
 ---
 
-### ④ 基于 LLM 的设计说明判定 — DeepSeek-R1 + RAG
+### ④ 基于 LLM 的设计说明判定 — DeepSeek-R1 + RAG（推荐）
+
+> **推荐方案**：算力充足时（16 GB+ 内存，NVIDIA GPU 8 GB+ VRAM），强烈建议使用本方案代替上方 BERT 方案。DeepSeek-R1 不仅能判断合规性，还能定位到具体规范条文并给出推理依据，结果可解释性远超 BERT 的二分类输出。
 
 基于 **Ollama 本地部署的 DeepSeek-R1:8b** 模型，结合 **RAG（检索增强生成）** 知识库，对图纸附注进行智能合规性判别。相比纯 BERT 方案，能够给出详细的判断依据和引用的规范条文。
 
@@ -412,4 +416,4 @@ uv run python Completeness_check/Completeness_check.py
 3. **OpenCV GUI**：`uv sync` 后 `opencv-python-headless` 可能被自动安装，运行 `uv run python scripts/fix_opencv.py` 即可修复。
 4. **模型路径**：YOLOv5 模型（`cstr.onnx`）和推理脚本位于 `Location/model/` 目录下。
 5. **逐条检验**：设计说明判定已优化分句逻辑，支持全角/半角标点混合、连续编号项自动拆分，确保每条附注独立判定。
-6. **Tesseract 路径**：完整性检查模块依赖 Tesseract OCR，需单独安装并将安装目录置于 `Completeness_check/` 下。
+6. **Tesseract 路径**：完整性检查模块依赖 Tesseract OCR，需单独安装并将安装目录置于此项目文件夹 `Drawing-review/` 下。
