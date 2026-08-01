@@ -13,7 +13,12 @@ powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | ie
 ```
 
 ### 下载代码
+```bash
+git clone https://github.com/QuKehang/Drawing-review.git
+cd Drawing-review
+```
 
+> 也可以通过 GitHub 页面「Code → Download ZIP」下载压缩包后解压。
 
 ### 基础环境（CPU 版本，所有机器通用）
 
