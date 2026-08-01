@@ -288,7 +288,7 @@ uv run python Annotation-test-RAG/Annotation_check_with.py
 
 ### ⑤ PP-OCR 表格识别 — 图纸表格结构化提取
 
-**功能**：基于 PaddleOCR (PP-OCRv4 + PP-Structure) 对图纸中的表格进行结构化识别，支持两种模式。
+**功能**：基于 PaddleOCR (PP-OCRv4 + PP-Structure) 对图纸中的表格进行结构化识别，自动检测并提取表格区域。
 
 **启动方式**：
 
@@ -298,22 +298,20 @@ uv run python PP-OCR_table_reading/Table_recognition.py
 
 **操作步骤**：
 
-1. **选择模式** → 在 GUI 界面中选择识别模式：
-   - **JSON 标注模式**：根据 JSON 标注坐标裁剪表格区域后识别（适用于已标注的图纸）
-   - **直接识别模式**：直接对整张图纸进行表格检测和识别
-2. **选择目录** → 分别选择：
-   - 输入图片/JSON 文件夹
+1. **选择目录** → 分别选择：
+   - 输入图片文件夹（含 `.png` / `.jpg` / `.jpeg` / `.bmp` 图纸图片）
    - 输出结果保存文件夹
-3. **运行识别** → 点击运行，系统将：
-   - 根据模式裁剪或检测表格区域
-   - 使用 PP-Structure 进行表格结构化识别
-4. **查看结果** → 结果保存为 Excel (`.xlsx`) + 文本 (`.txt`) 格式：
+2. **运行识别** → 点击「开始处理」，系统将：
+   - 使用 PP-Structure 对每张图片进行表格检测
+   - 自动提取表格结构并保存为 Excel
+3. **查看结果** → 输出以图片名称组织，每个表格独立保存为 Excel (`.xlsx`) 文件：
 
 ```
 Output/
-├── cropped_page_1_figue_2/
-│   ├── [16, 20, 549, 624]_0.xlsx    # 表格数据
-│   └── res_0.txt                    # 识别文本
+├── page_577/
+│   ├── page_577_1.xlsx    # 第1个表格
+│   ├── page_577_2.xlsx    # 第2个表格
+│   └── ...
 └── ...
 ```
 
@@ -340,7 +338,7 @@ uv run python Completeness_check/Completeness_check.py
    - 自动标记匹配/不匹配项
 5. **查看结果** → 在 GUI 的对比表格中查看匹配状态，定位不一致的条目
 
-**前置条件**：需安装 Tesseract OCR 并将安装目录置于 `Completeness_check/` 下（见上方 Tesseract OCR 安装说明）。
+**前置条件**：需安装 Tesseract OCR 并将安装目录置于Drawing_review文件夹下见上方 Tesseract OCR 安装说明）。
 
 ---
 
