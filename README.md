@@ -197,7 +197,9 @@ uv run python Code_of_Bert_Trainning/Design_Judge.py
 
 ### ③ 设计说明判定（BERT） — OCR + BERT 文本分类
 
-> **附注判定方案说明**：BERT 与 DeepSeek-R1（见下方 ④）为**二选一**的可选方案，用户可根据实际算力条件灵活选择。BERT 方案轻量、离线、无需 GPU，适合常规场景；DeepSeek-R1 方案能给出详细判断依据和规范条文引用，判别质量更高，但需要 Ollama 本地部署且对硬件要求较高（推荐 16 GB+ 内存、8 GB+ VRAM）。
+> **附注判定方案说明**：BERT 与 DeepSeek-R1（见下方 ④）为**二选一**的可选方案，用户可根据实际算力条件灵活选择。
+> BERT 方案轻量、离线、无需 GPU，适合常规场景；
+> DeepSeek-R1 方案能给出详细判断依据和规范条文引用，判别质量更高，但需要 Ollama 本地部署且对硬件要求较高（推荐 16 GB+ 内存、8 GB+ VRAM）。
 
 **功能**：直接对已裁剪好的 annotation 图块文件夹进行 OCR 识别，使用本地 BERT 模型逐条判定每条附注是否符合设计说明规范。
 
