@@ -89,7 +89,7 @@ Tesseract OCR下载也可通过百度云盘下载，位于云盘的drawing-revie
 下载后安装路径都应置于Drawing_review文件夹下
 
 ### YOLO预训练模型下载
-预训练模型文件格式为onnx，保存在百度云盘的drawing-review\Model Profile文件夹，链接: https://pan.baidu.com/s/1xf0vih-NDKEyIJgOq5RUZg 提取码: darw
+预训练模型文件格式为onnx，保存在百度云盘的drawing-review\model-Profile文件夹，链接: https://pan.baidu.com/s/1xf0vih-NDKEyIJgOq5RUZg 提取码: darw
 下载后应保存至Location\model文件夹下
 
 ---
@@ -227,7 +227,7 @@ uv run python Annotation-test/Annotation_check_without.py
 uv run python Code_of_Bert_Trainning/Design_Judge.py
 ```
 
-> ⚠️ 本项目基于已有规范训练得到微调模型，若规范有所更改，建议重新训练。训练完成后在项目根目录生成 `bert_model_trained/` 文件夹。
+> ⚠️ 本项目基于已有规范训练得到微调模型，训练好的模型存储于百度网盘Drawing_review/Trained_bert_model，链接: https://pan.baidu.com/s/1xf0vih-NDKEyIJgOq5RUZg 提取码: darw,下载后解压后应置于Drawing_review文件夹下；若规范有所更改，建议重新训练。训练完成后在项目根目录生成 `bert_model_trained/` 文件夹。
 
 **训练数据**（位于 `Code_of_Bert_Trainning/`）：
 - `design_spec.txt` — 正例（符合规范的设计说明条文）
