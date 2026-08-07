@@ -85,11 +85,11 @@ uv run python scripts/fix_opencv.py
 下载地址`https://github.com/UB-Mannheim/tesseract/wiki`
 安装时勾选中文语言包 (Chinese Simplified)
 
-Tesseract OCR下载也可通过阿里云盘下载，位于云盘的drawing-review\OCR文件夹，链接: https://pan.baidu.com/s/1xf0vih-NDKEyIJgOq5RUZg 提取码: darw
+Tesseract OCR下载也可通过百度云盘下载，位于云盘的drawing-review\OCR文件夹，链接: https://pan.baidu.com/s/1xf0vih-NDKEyIJgOq5RUZg 提取码: darw
 下载后安装路径都应置于Drawing_review文件夹下
 
 ### YOLO预训练模型下载
-预训练模型文件格式为onnx，保存在阿里云盘的drawing-review\Model Profile文件夹，链接: https://pan.baidu.com/s/1xf0vih-NDKEyIJgOq5RUZg 提取码: darw
+预训练模型文件格式为onnx，保存在百度云盘的drawing-review\Model Profile文件夹，链接: https://pan.baidu.com/s/1xf0vih-NDKEyIJgOq5RUZg 提取码: darw
 下载后应保存至Location\model文件夹下
 
 ---
